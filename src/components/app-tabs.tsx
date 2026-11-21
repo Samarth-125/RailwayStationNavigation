@@ -27,6 +27,11 @@ export default function AppTabs() {
           renderingMode="template"
         />
       </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="trains">
+        <NativeTabs.Trigger.Label>Trains</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="tram.fill" md="train" />
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
