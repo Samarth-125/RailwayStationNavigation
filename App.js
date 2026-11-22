@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { SafeAreaView, View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import NavigateScreen from './screens/NavigateScreen';
 import TrainsScreen from './screens/TrainsScreen';
 import FacilitiesScreen from './screens/FacilitiesScreen';

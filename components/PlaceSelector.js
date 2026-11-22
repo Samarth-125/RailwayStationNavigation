@@ -1,5 +1,6 @@
 import { useState, memo } from 'react';
-import { Modal, SafeAreaView, View, Text, Pressable, FlatList, StyleSheet } from 'react-native';
+import { Modal, View, Text, Pressable, FlatList, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { choosablePlaces, placeById } from '../data/stationData';
 
 // A compact field ("From: Main Entrance"). Tapping it opens a full-screen list.

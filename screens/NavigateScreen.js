@@ -34,6 +34,8 @@ export default function NavigateScreen({
   }
 
   function speak() {
+    // A route can become null when the selected start or destination changes.
+    if (!route || route.steps.length === 0) return;
     Speech.stop(); // stop anything already being read
     Speech.speak(route.steps.join('. '), { language: 'en-IN' });
   }
