@@ -10,7 +10,7 @@ links.forEach((l) => {
   graph[l.b].push({ to: l.a, meters: l.meters, mode: l.mode }); // both directions
 });
 
-// Turns one hop into a sentence a passenger can follow.
+// Turns one move into a sentence a passenger can follow.
 function describe(mode, toId, meters) {
   const to = placeById[toId].name;
   if (mode === 'stairs') return `Take the stairs to ${to} (${meters} m)`;
@@ -52,6 +52,28 @@ function shortestPaths(fromId, stepFreeOnly) {
   return { dist, cameFrom };
 }
 
+// Joins hops that pass through unnamed corridor spots into ONE sentence,
+// so passengers hear "Walk to Concourse (65 m)" and not four tiny steps.
+function makeSteps(hops) {
+  const steps = [];
+  let i = 0;
+  while (i < hops.length) {
+    let { to, mode, meters } = hops[i];
+    while (
+      placeById[to].category === 'corridor' &&
+      i + 1 < hops.length &&
+      hops[i + 1].mode === mode
+    ) {
+      i += 1;
+      to = hops[i].to;
+      meters += hops[i].meters;
+    }
+    steps.push(describe(mode, to, meters));
+    i += 1;
+  }
+  return steps;
+}
+
 // Route from one place to another.
 // Returns { totalMeters, steps: [text...], path: [placeId...] } or null if no route.
 export function findRoute(fromId, toId, stepFreeOnly) {
@@ -59,16 +81,17 @@ export function findRoute(fromId, toId, stepFreeOnly) {
   const { dist, cameFrom } = shortestPaths(fromId, stepFreeOnly);
   if (dist[toId] === Infinity) return null;
 
+  // Walk backwards from the destination, collecting each hop.
   const path = [toId];
-  const steps = [];
+  const hops = [];
   let id = toId;
   while (id !== fromId) {
     const hop = cameFrom[id];
-    steps.unshift(describe(hop.mode, id, hop.meters));
+    hops.unshift({ to: id, mode: hop.mode, meters: hop.meters });
     id = hop.from;
     path.unshift(id);
   }
-  return { totalMeters: dist[toId], steps, path };
+  return { totalMeters: dist[toId], steps: makeSteps(hops), path };
 }
 
 // Closest place of one category (e.g. 'restroom') from where you are.

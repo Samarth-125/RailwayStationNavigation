@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 import { ScrollView, View, Text, Pressable, Switch, StyleSheet } from 'react-native';
 import * as Speech from 'expo-speech';
-import { STATION_NAME } from '../data/stationData';
-import { findRoute } from '../utils/findRoute';
-import PlacePicker from '../components/PlacePicker';
+import { STATION_NAME, placeById } from '../data/stationData';
+import { findRoute, findNearest } from '../utils/findRoute';
+import { activeTrainsAt } from '../utils/trainStatus';
+import PlaceSelector from '../components/PlaceSelector';
 import RouteMap from '../components/RouteMap';
 
 export default function NavigateScreen({
@@ -13,6 +14,9 @@ export default function NavigateScreen({
   setToId,
   stepFreeOnly,
   setStepFreeOnly,
+  trains,
+  trackedTrain,
+  onStopTracking,
 }) {
   // useMemo = only recalculate the route when one of these three values changes.
   const route = useMemo(
@@ -20,9 +24,16 @@ export default function NavigateScreen({
     [fromId, toId, stepFreeOnly]
   );
 
+  // Trains still to come at the platform you are heading to (if it is a platform).
+  const trainsHere = toId ? activeTrainsAt(trains, toId) : [];
+
+  // Emergency buttons: set the destination to the nearest police booth / medical room.
+  function goToNearest(category) {
+    const nearest = findNearest(fromId, category, stepFreeOnly);
+    if (nearest) setToId(nearest.id);
+  }
+
   function speak() {
-    // The selected route can become null if the start or destination changes.
-    if (!route || route.steps.length === 0) return;
     Speech.stop(); // stop anything already being read
     Speech.speak(route.steps.join('. '), { language: 'en-IN' });
   }
@@ -32,8 +43,29 @@ export default function NavigateScreen({
       <Text style={styles.title}>Station Navigator</Text>
       <Text style={styles.subtitle}>{STATION_NAME}</Text>
 
-      <PlacePicker title="From" selectedId={fromId} onSelect={setFromId} />
-      <PlacePicker title="To" selectedId={toId} onSelect={setToId} />
+      {trackedTrain && (
+        <View style={styles.tracking}>
+          <Text style={styles.trackingTitle}>
+            Tracking {trackedTrain.name} ({trackedTrain.number})
+          </Text>
+          {trackedTrain.platformChanged && (
+            <Text style={styles.changed}>
+              PLATFORM CHANGED: now {placeById[trackedTrain.platformId].name} (was{' '}
+              {placeById[trackedTrain.previousPlatformId].name}). Directions are updated.
+            </Text>
+          )}
+          <Text style={styles.trackingText}>
+            {placeById[trackedTrain.platformId].name} - expected {trackedTrain.expected} -{' '}
+            {trackedTrain.delayText}. {trackedTrain.whenText}.
+          </Text>
+          <Pressable onPress={onStopTracking} accessibilityRole="button">
+            <Text style={styles.stopTracking}>Stop tracking</Text>
+          </Pressable>
+        </View>
+      )}
+
+      <PlaceSelector title="From" selectedId={fromId} onSelect={setFromId} />
+      <PlaceSelector title="To" selectedId={toId} onSelect={setToId} />
 
       <View style={styles.switchRow}>
         <Text style={styles.switchLabel}>Step-free route only (no stairs)</Text>
@@ -44,7 +76,24 @@ export default function NavigateScreen({
         />
       </View>
 
-      <RouteMap path={route ? route.path : null} fromId={fromId} toId={toId} />
+      <View style={styles.buttonRow}>
+        <Pressable
+          style={[styles.button, styles.police]}
+          onPress={() => goToNearest('police')}
+          accessibilityRole="button"
+          accessibilityLabel="Directions to the nearest police help booth"
+        >
+          <Text style={styles.buttonText}>Nearest Police</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.button, styles.medical]}
+          onPress={() => goToNearest('medical')}
+          accessibilityRole="button"
+          accessibilityLabel="Directions to the nearest medical room"
+        >
+          <Text style={styles.buttonText}>Nearest Medical</Text>
+        </Pressable>
+      </View>
 
       <View style={styles.result}>
         <Text style={styles.heading}>Directions</Text>
@@ -76,6 +125,28 @@ export default function NavigateScreen({
           </View>
         )}
       </View>
+
+      {trainsHere.length > 0 && (
+        <View style={styles.result}>
+          <Text style={styles.heading}>Trains at {placeById[toId].name} (sample)</Text>
+          {trainsHere.map((t) => (
+            <Text key={t.id} style={styles.line}>
+              {t.expected} - {t.name} ({t.number}) - {t.delayText}. {t.whenText}.
+            </Text>
+          ))}
+        </View>
+      )}
+
+      <Text style={[styles.heading, styles.mapHeading]}>Station map</Text>
+      <RouteMap path={route ? route.path : null} fromId={fromId} toId={toId} trains={trains} />
+      <Text style={styles.legend}>
+        <Text style={{ color: '#15803d', fontWeight: 'bold' }}>Green = start</Text>
+        {'   '}
+        <Text style={{ color: '#b91c1c', fontWeight: 'bold' }}>Red = destination</Text>
+        {'   '}
+        <Text style={{ color: '#1d4ed8', fontWeight: 'bold' }}>Blue line = route</Text>
+      </Text>
+      <Text style={styles.legend}>Not to scale. Sample station and sample trains only.</Text>
     </ScrollView>
   );
 }
@@ -85,18 +156,26 @@ const styles = StyleSheet.create({
   title: { fontSize: 26, fontWeight: 'bold' },
   subtitle: { fontSize: 14, color: '#555555', marginBottom: 12 },
   heading: { fontSize: 18, fontWeight: '600', marginBottom: 8 },
+  mapHeading: { marginTop: 16 },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   switchLabel: { fontSize: 16, flex: 1, marginRight: 12 },
-  result: { backgroundColor: '#f3f4f6', borderRadius: 8, padding: 14 },
+  result: { backgroundColor: '#f3f4f6', borderRadius: 8, padding: 14, marginBottom: 12 },
   hint: { fontSize: 16, color: '#555555' },
   total: { fontSize: 16, fontWeight: '600', marginBottom: 8 },
   step: { fontSize: 18, marginBottom: 6 },
-  buttonRow: { flexDirection: 'row', marginTop: 10 },
+  line: { fontSize: 16, marginBottom: 4 },
+  tracking: { backgroundColor: '#ecfdf5', borderWidth: 1, borderColor: '#15803d', borderRadius: 8, padding: 12, marginBottom: 12 },
+  trackingTitle: { fontSize: 16, fontWeight: 'bold', color: '#15803d' },
+  trackingText: { fontSize: 15, marginTop: 4 },
+  changed: { fontSize: 15, fontWeight: 'bold', color: '#ffffff', backgroundColor: '#7c3aed', padding: 6, borderRadius: 4, marginTop: 6 },
+  stopTracking: { color: '#1d4ed8', fontWeight: '600', fontSize: 15, marginTop: 8 },
+  legend: { fontSize: 13, color: '#555555', marginBottom: 4 },
+  buttonRow: { flexDirection: 'row', marginBottom: 12 },
   button: {
     backgroundColor: '#1d4ed8',
     borderRadius: 8,
@@ -104,6 +183,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     marginRight: 10,
   },
+  police: { backgroundColor: '#1e3a8a' },
+  medical: { backgroundColor: '#b91c1c' },
   buttonLight: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#1d4ed8' },
   buttonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
   buttonTextDark: { color: '#1d4ed8' },

@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, View, Text, Pressable, StyleSheet } from 'react-native';
 import NavigateScreen from './screens/NavigateScreen';
 import TrainsScreen from './screens/TrainsScreen';
 import FacilitiesScreen from './screens/FacilitiesScreen';
+import useTrains from './hooks/useTrains';
 
 const TABS = ['Navigate', 'Trains', 'Facilities'];
 
@@ -11,12 +11,30 @@ export default function App() {
   const [tab, setTab] = useState('Navigate');
   // Shared by all tabs, so switching tabs does not lose your choices.
   const [fromId, setFromId] = useState('entrance');
-  const [toId, setToId] = useState(null);
+  const [chosenToId, setChosenToId] = useState(null); // destination picked by hand
+  const [trackedTrainId, setTrackedTrainId] = useState(null); // train being followed
   const [stepFreeOnly, setStepFreeOnly] = useState(false);
+  const trainData = useTrains();
 
-  // Other tabs call this: set the destination, then jump to the Navigate tab.
+  // If you are tracking a train, the destination is that train's CURRENT platform.
+  // So when the platform changes, the route updates by itself.
+  const trackedTrain = trainData.trains.find((t) => t.id === trackedTrainId) || null;
+  const toId = trackedTrain ? trackedTrain.platformId : chosenToId;
+
+  function setToId(placeId) {
+    setTrackedTrainId(null); // picking a place by hand stops tracking
+    setChosenToId(placeId);
+  }
+
+  // Facilities tab: go to a place.
   function goTo(placeId) {
     setToId(placeId);
+    setTab('Navigate');
+  }
+
+  // Trains tab: follow a train and get directions to its platform.
+  function trackTrain(trainId) {
+    setTrackedTrainId(trainId);
     setTab('Navigate');
   }
 
@@ -38,9 +56,18 @@ export default function App() {
             setToId={setToId}
             stepFreeOnly={stepFreeOnly}
             setStepFreeOnly={setStepFreeOnly}
+            trains={trainData.trains}
+            trackedTrain={trackedTrain}
+            onStopTracking={() => setTrackedTrainId(null)}
           />
         )}
-        {tab === 'Trains' && <TrainsScreen onGoToPlatform={goTo} />}
+        {tab === 'Trains' && (
+          <TrainsScreen
+            trainData={trainData}
+            trackedTrainId={trackedTrainId}
+            onTrack={trackTrain}
+          />
+        )}
         {tab === 'Facilities' && (
           <FacilitiesScreen fromId={fromId} stepFreeOnly={stepFreeOnly} onGoTo={goTo} />
         )}
