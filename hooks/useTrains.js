@@ -7,7 +7,7 @@ import { enrich } from '../utils/trainStatus';
 // so the Trains tab, the map and the directions always agree.
 export default function useTrains() {
   const [step, setStep] = useState(0); // position in the demo story
-  const [data, setData] = useState({ trains: [], nowMin: 0, note: '' });
+  const [data, setData] = useState({ trains: [], nowMin: 0, note: '', noteHi: '' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -20,9 +20,10 @@ export default function useTrains() {
         trains: result.trains.map((t) => enrich(t, result.nowMin)),
         nowMin: result.nowMin,
         note: result.note,
+        noteHi: result.noteHi,
       });
     } catch (e) {
-      setError('Could not load trains. Please try again.');
+      setError(true) // the screen shows the message, in the chosen language;
     }
     setLoading(false);
   }, []);
@@ -35,6 +36,7 @@ export default function useTrains() {
     trains: data.trains,
     nowMin: data.nowMin,
     note: data.note,
+    noteHi: data.noteHi,
     loading,
     error,
     step,

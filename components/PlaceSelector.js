@@ -1,12 +1,16 @@
 import { useState, memo } from 'react';
-import { Modal, View, Text, Pressable, FlatList, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useI18n, nameText } from '../utils/i18n';
+import { isClosedPlace } from '../utils/findRoute';
+import { Modal, SafeAreaView, View, Text, Pressable, FlatList, StyleSheet } from 'react-native';
 
 // A compact field ("From: Main Entrance"). Tapping it opens a full-screen list.
 // This keeps the main screen short, so directions and the map stay visible.
-function PlaceSelector({ title, selectedId, onSelect, choices, placeById }) {
+function PlaceSelector({ title, selectedId, onSelect, choices, placeById, closedIds }) {
+  const { lang, t } = useI18n();
   const [open, setOpen] = useState(false);
-  const selectedName = selectedId ? placeById[selectedId].name : 'Choose a place';
+  const label = (id) =>
+    nameText(placeById[id].name, lang) + (isClosedPlace(id, closedIds) ? t('closedSuffix') : '');
+  const selectedName = selectedId ? label(selectedId) : t('choosePlace');
 
   function choose(id) {
     onSelect(id);
@@ -19,7 +23,7 @@ function PlaceSelector({ title, selectedId, onSelect, choices, placeById }) {
         style={styles.field}
         onPress={() => setOpen(true)}
         accessibilityRole="button"
-        accessibilityLabel={`${title}: ${selectedName}. Tap to change.`}
+        accessibilityLabel={`${title}: ${selectedName}. ${t('tapChange')}`}
       >
         <Text style={styles.fieldTitle}>{title}</Text>
         <Text style={styles.fieldValue}>{selectedName}  ▾</Text>
@@ -29,8 +33,8 @@ function PlaceSelector({ title, selectedId, onSelect, choices, placeById }) {
         <SafeAreaView style={styles.modal}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{title}</Text>
-            <Pressable onPress={() => setOpen(false)} accessibilityRole="button" accessibilityLabel="Close">
-              <Text style={styles.close}>Close</Text>
+            <Pressable onPress={() => setOpen(false)} accessibilityRole="button" accessibilityLabel={t('close')}>
+              <Text style={styles.close}>{t('close')}</Text>
             </Pressable>
           </View>
           <FlatList
@@ -46,7 +50,7 @@ function PlaceSelector({ title, selectedId, onSelect, choices, placeById }) {
                   accessibilityState={{ selected }}
                 >
                   <Text style={[styles.rowText, selected && styles.rowTextSelected]}>
-                    {selected ? '✓  ' : ''}{item.name}
+                    {selected ? '✓  ' : ''}{label(item.id)}
                   </Text>
                 </Pressable>
               );

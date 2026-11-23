@@ -1,14 +1,18 @@
 import { useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, View, Text, Pressable, StyleSheet } from 'react-native';
 import NavigateScreen from './screens/NavigateScreen';
 import TrainsScreen from './screens/TrainsScreen';
 import FacilitiesScreen from './screens/FacilitiesScreen';
 import StationSelector from './components/StationSelector';
+import { LangContext, t as translate } from './utils/i18n';
 import useTrains from './hooks/useTrains';
 import { getStation } from './data/buildStation';
 
-const TABS = ['Navigate', 'Trains', 'Facilities'];
+const TABS = [
+  { key: 'Navigate', label: 'tabNavigate' },
+  { key: 'Trains', label: 'tabTrains' },
+  { key: 'Facilities', label: 'tabFacilities' },
+];
 
 export default function App() {
   const [tab, setTab] = useState('Navigate');
@@ -18,6 +22,8 @@ export default function App() {
   const [chosenToId, setChosenToId] = useState(null); // destination picked by hand
   const [trackedTrainId, setTrackedTrainId] = useState(null); // train being followed
   const [stepFreeOnly, setStepFreeOnly] = useState(false);
+  const [lang, setLang] = useState('en'); // 'en' or 'hi'
+  const [closedIds, setClosedIds] = useState([]); // platforms marked closed (demo switch)
   const trainData = useTrains();
 
   const station = getStation(stationId); // built once per station, then remembered
@@ -38,7 +44,12 @@ export default function App() {
     setFromId('entrance');
     setChosenToId(null);
     setTrackedTrainId(null);
+    setClosedIds([]);
     setTab('Navigate');
+  }
+
+  function toggleClosed(platformId) {
+    setClosedIds((ids) => (ids.includes(platformId) ? ids.filter((i) => i !== platformId) : [...ids, platformId]));
   }
 
   // Facilities tab: go to a place.
@@ -53,16 +64,31 @@ export default function App() {
     setTab('Navigate');
   }
 
+  const t = (key) => translate(lang, key);
+
   return (
+    <LangContext.Provider value={lang}>
     <SafeAreaView style={styles.screen}>
       {/* Demo warning: always visible, on every tab */}
       <View style={styles.banner} accessibilityRole="alert">
         <Text style={styles.bannerText}>
-          DEMO - SAMPLE DATA ONLY. This is not live or official railway information.
+          {t('demoBanner')}
         </Text>
       </View>
 
-      <StationSelector station={station} onSelect={chooseStation} />
+      <View style={styles.topRow}>
+        <View style={styles.stationBar}>
+          <StationSelector station={station} onSelect={chooseStation} />
+        </View>
+        <Pressable
+          style={styles.langButton}
+          onPress={() => setLang(lang === 'en' ? 'hi' : 'en')}
+          accessibilityRole="button"
+          accessibilityLabel={t('switchLangLabel')}
+        >
+          <Text style={styles.langText}>{t('switchLang')}</Text>
+        </Pressable>
+      </View>
 
       <View style={styles.body}>
         {tab === 'Navigate' && (
@@ -74,6 +100,8 @@ export default function App() {
             setToId={setToId}
             stepFreeOnly={stepFreeOnly}
             setStepFreeOnly={setStepFreeOnly}
+            closedIds={closedIds}
+            toggleClosed={toggleClosed}
             trains={trainData.trains}
             trackedTrain={trackedTrain}
             onStopTracking={() => setTrackedTrainId(null)}
@@ -85,6 +113,7 @@ export default function App() {
             trainData={trainData}
             trackedTrainId={trackedTrainId}
             onTrack={trackTrain}
+            closedIds={closedIds}
           />
         )}
         {tab === 'Facilities' && (
@@ -92,28 +121,30 @@ export default function App() {
             station={station}
             fromId={fromId}
             stepFreeOnly={stepFreeOnly}
+            closedIds={closedIds}
             onGoTo={goTo}
           />
         )}
       </View>
 
       <View style={styles.tabBar}>
-        {TABS.map((name) => {
-          const selected = tab === name;
+        {TABS.map(({ key, label }) => {
+          const selected = tab === key;
           return (
             <Pressable
-              key={name}
+              key={key}
               style={styles.tab}
-              onPress={() => setTab(name)}
+              onPress={() => setTab(key)}
               accessibilityRole="tab"
               accessibilityState={{ selected }}
             >
-              <Text style={[styles.tabText, selected && styles.tabTextSelected]}>{name}</Text>
+              <Text style={[styles.tabText, selected && styles.tabTextSelected]}>{t(label)}</Text>
             </Pressable>
           );
         })}
       </View>
     </SafeAreaView>
+    </LangContext.Provider>
   );
 }
 
@@ -121,6 +152,10 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#ffffff' },
   banner: { backgroundColor: '#b45309', padding: 10 },
   bannerText: { color: '#ffffff', fontWeight: 'bold', textAlign: 'center' },
+  topRow: { flexDirection: 'row', backgroundColor: '#1e293b', alignItems: 'center' },
+  stationBar: { flex: 1 },
+  langButton: { borderWidth: 1, borderColor: '#ffffff', borderRadius: 6, paddingVertical: 4, paddingHorizontal: 10, marginRight: 10 },
+  langText: { color: '#ffffff', fontWeight: 'bold', fontSize: 15 },
   body: { flex: 1 },
   tabBar: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#e5e7eb' },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 14 },

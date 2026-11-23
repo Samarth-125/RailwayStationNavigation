@@ -1,19 +1,20 @@
 import { useState, memo } from 'react';
 import {
-  Modal, View, Text, TextInput, Pressable, FlatList, StyleSheet,
+  Modal, SafeAreaView, View, Text, TextInput, Pressable, FlatList, StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { STATION_LIST } from '../data/stationList';
+import { useI18n, field } from '../utils/i18n';
 
 // A bar at the top ("Station: New Delhi (NDLS)"). Tapping opens a searchable list.
 function StationSelector({ station, onSelect }) {
+  const { lang, t } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
 
   // Search by name, code, city, or an old/other name (like "kashmere gate").
   const q = query.trim().toLowerCase();
   const shown = STATION_LIST.filter((s) =>
-    `${s.name} ${s.id} ${s.city} ${s.search || ''}`.toLowerCase().includes(q)
+    `${s.name} ${s.nameHi || ''} ${s.id} ${s.city} ${s.cityHi || ''} ${s.search || ''}`.toLowerCase().includes(q)
   );
 
   function choose(id) {
@@ -28,34 +29,34 @@ function StationSelector({ station, onSelect }) {
         style={styles.bar}
         onPress={() => setOpen(true)}
         accessibilityRole="button"
-        accessibilityLabel={`Station: ${station.name}. Tap to change station.`}
+        accessibilityLabel={`${t('station')}: ${field(station, 'name', lang)}. ${t('tapChangeStation')}`}
       >
         <Text style={styles.barText} numberOfLines={1}>
-          Station: {station.name} ({station.id})  ▾
+          {t('station')}: {field(station, 'name', lang)} ({station.id})  ▾
         </Text>
       </Pressable>
 
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
         <SafeAreaView style={styles.modal}>
           <View style={styles.header}>
-            <Text style={styles.title}>Choose a station</Text>
-            <Pressable onPress={() => setOpen(false)} accessibilityRole="button" accessibilityLabel="Close">
-              <Text style={styles.close}>Close</Text>
+            <Text style={styles.title}>{t('chooseStation')}</Text>
+            <Pressable onPress={() => setOpen(false)} accessibilityRole="button" accessibilityLabel={t('close')}>
+              <Text style={styles.close}>{t('close')}</Text>
             </Pressable>
           </View>
           <TextInput
             style={styles.search}
-            placeholder="Search name, code or city (try: kashmere gate)"
+            placeholder={t('searchPlaceholder')}
             value={query}
             onChangeText={setQuery}
             autoCorrect={false}
-            accessibilityLabel="Search stations"
+            accessibilityLabel={t('searchLabel')}
           />
           <FlatList
             data={shown}
             keyExtractor={(s) => s.id}
             keyboardShouldPersistTaps="handled"
-            ListEmptyComponent={<Text style={styles.empty}>No station found.</Text>}
+            ListEmptyComponent={<Text style={styles.empty}>{t('noStation')}</Text>}
             renderItem={({ item }) => {
               const selected = item.id === station.id;
               return (
@@ -66,10 +67,10 @@ function StationSelector({ station, onSelect }) {
                   accessibilityState={{ selected }}
                 >
                   <Text style={[styles.rowName, selected && styles.rowNameSelected]}>
-                    {selected ? '✓  ' : ''}{item.name}
+                    {selected ? '✓  ' : ''}{field(item, 'name', lang)}
                   </Text>
                   <Text style={styles.rowInfo}>
-                    {item.id} - {item.city} - {item.platforms} platforms
+                    {item.id} - {field(item, 'city', lang)} - {t('platformsCount', { n: item.platforms })}
                   </Text>
                 </Pressable>
               );

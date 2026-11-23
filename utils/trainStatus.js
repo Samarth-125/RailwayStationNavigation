@@ -26,20 +26,12 @@ export function enrich(train, nowMin) {
   else if (etaMin <= -HALT_MIN) state = 'departed';
   else if (etaMin <= 0) state = 'at_platform';
 
-  let whenText;
-  if (state === 'cancelled') whenText = 'Cancelled';
-  else if (state === 'departed') whenText = 'Departed';
-  else if (state === 'at_platform') whenText = 'At the platform now';
-  else whenText = `Arrives in ${etaMin} min`;
-
   return {
     ...train,
     delayMin,
     expected: toClock(expectedMin),
     etaMin,
     state,
-    delayText: delayMin > 0 ? `Delayed ${delayMin} min` : 'On time',
-    whenText,
     // true only while the passenger still needs to know about the change
     platformChanged: Boolean(train.previousPlatformId) && state !== 'departed' && state !== 'cancelled',
   };

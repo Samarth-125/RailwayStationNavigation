@@ -8,7 +8,7 @@ import { toMinutes } from '../utils/trainStatus';
 // (No free official public API for live train status was found; see the notes.)
 //
 // step = which part of the demo story to show (0 = first).
-// Returns: { source: 'SAMPLE', nowMin, note, trains: [ { id, number, name, route,
+// Returns: { source: 'SAMPLE', nowMin, note, noteHi, trains: [ { id, number, name, route,
 //            scheduled, delayMin?, platformId, previousPlatformId? } ] }
 export async function getTrains(step = 0) {
   await new Promise((resolve) => setTimeout(resolve, 300)); // pretend network delay
@@ -31,6 +31,7 @@ export async function getTrains(step = 0) {
     source: 'SAMPLE',
     nowMin: toMinutes(current.now),
     note: current.note,
+    noteHi: current.noteHi,
     trains: Object.values(trains),
   };
 }

@@ -1,25 +1,28 @@
 import { View, Text, Pressable, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
 import { toClock } from '../utils/trainStatus';
+import { isClosedPlace } from '../utils/findRoute';
+import { useI18n, nameText, field, delayText, whenText } from '../utils/i18n';
 
 // Shows each sample train: which platform, when it comes, delays, platform changes.
 // The data comes from App.js (hooks/useTrains.js).
-export default function TrainsScreen({ station, trainData, trackedTrainId, onTrack }) {
+export default function TrainsScreen({ station, trainData, trackedTrainId, onTrack, closedIds }) {
+  const { lang, t } = useI18n();
   const { placeById } = station;
-  const { trains, nowMin, note, loading, error, reload, nextUpdate, resetDemo, isLastStep } = trainData;
+  const { trains, nowMin, note, noteHi, loading, error, reload, nextUpdate, resetDemo, isLastStep } = trainData;
 
   return (
     <View style={styles.screen}>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Train board (SAMPLE)</Text>
-        <Pressable onPress={reload} accessibilityRole="button" accessibilityLabel="Refresh trains">
-          <Text style={styles.refresh}>Refresh</Text>
+        <Text style={styles.title}>{t('trainBoard')}</Text>
+        <Pressable onPress={reload} accessibilityRole="button" accessibilityLabel={t('refreshLabel')}>
+          <Text style={styles.refresh}>{t('refresh')}</Text>
         </Pressable>
       </View>
 
       {/* Demo controls: they replay a pretend story. Remove when real data is connected. */}
       <View style={styles.demo}>
-        <Text style={styles.demoTitle}>Demo clock: {toClock(nowMin)}</Text>
-        <Text style={styles.demoNote}>{note}</Text>
+        <Text style={styles.demoTitle}>{t('demoClock', { t: toClock(nowMin) })}</Text>
+        <Text style={styles.demoNote}>{lang === 'hi' && noteHi ? noteHi : note}</Text>
         <View style={styles.demoButtons}>
           <Pressable
             style={[styles.demoButton, isLastStep && styles.demoButtonOff]}
@@ -27,44 +30,46 @@ export default function TrainsScreen({ station, trainData, trackedTrainId, onTra
             disabled={isLastStep}
             accessibilityRole="button"
           >
-            <Text style={styles.demoButtonText}>Next demo update</Text>
+            <Text style={styles.demoButtonText}>{t('nextUpdate')}</Text>
           </Pressable>
           <Pressable style={styles.demoButtonLight} onPress={resetDemo} accessibilityRole="button">
-            <Text style={styles.demoButtonLightText}>Restart demo</Text>
+            <Text style={styles.demoButtonLightText}>{t('restart')}</Text>
           </Pressable>
         </View>
       </View>
 
       {loading && <ActivityIndicator size="large" style={styles.loader} />}
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && <Text style={styles.error}>{t('loadError')}</Text>}
 
       {!loading && !error && (
         <FlatList
           data={trains}
           keyExtractor={(t) => t.id}
           renderItem={({ item }) => {
-            const platform = placeById[item.platformId].name;
+            const platform = nameText(placeById[item.platformId].name, lang);
+            const closed = isClosedPlace(item.platformId, closedIds);
             const finished = item.state === 'departed' || item.state === 'cancelled';
             const tracking = item.id === trackedTrainId;
             return (
               <View style={[styles.card, finished && styles.cardFinished]}>
                 <Text style={styles.trainName}>
-                  {item.name} ({item.number})
+                  {field(item, 'name', lang)} ({item.number})
                 </Text>
-                <Text style={styles.route}>{item.route}</Text>
+                <Text style={styles.route}>{field(item, 'route', lang)}</Text>
 
                 {item.platformChanged && (
                   <Text style={styles.changed}>
-                    PLATFORM CHANGED: was {placeById[item.previousPlatformId].name}
+                    {t('platformChangedWas', { p: nameText(placeById[item.previousPlatformId].name, lang) })}
                   </Text>
                 )}
+                {closed && !finished && <Text style={styles.closed}>{t('closedBadge')}</Text>}
                 <Text style={styles.platform}>{platform}</Text>
 
                 <Text style={styles.line}>
-                  Scheduled {item.scheduled} - Expected {item.expected}
+                  {t('scheduledExpected', { s: item.scheduled, e: item.expected })}
                 </Text>
                 <Text style={[styles.line, item.delayMin > 0 && styles.late]}>
-                  {item.delayText}. {item.whenText}.
+                  {delayText(item, lang)}. {whenText(item, lang)}.
                 </Text>
 
                 {!finished && (
@@ -72,10 +77,10 @@ export default function TrainsScreen({ station, trainData, trackedTrainId, onTra
                     style={[styles.button, tracking && styles.buttonOn]}
                     onPress={() => onTrack(item.id)}
                     accessibilityRole="button"
-                    accessibilityLabel={`Track ${item.name} and get directions to ${platform}`}
+                    accessibilityLabel={t('trackLabel', { name: field(item, 'name', lang), p: platform })}
                   >
                     <Text style={styles.buttonText}>
-                      {tracking ? 'Tracking - show directions' : `Track and go to ${platform}`}
+                      {tracking ? t('trackingShow') : t('trackGo', { p: platform })}
                     </Text>
                   </Pressable>
                 )}
@@ -109,6 +114,7 @@ const styles = StyleSheet.create({
   trainName: { fontSize: 18, fontWeight: '600' },
   route: { fontSize: 14, color: '#555555', marginBottom: 6 },
   changed: { fontSize: 15, fontWeight: 'bold', color: '#ffffff', backgroundColor: '#7c3aed', padding: 6, borderRadius: 4, marginBottom: 4 },
+  closed: { fontSize: 15, fontWeight: 'bold', color: '#ffffff', backgroundColor: '#b91c1c', padding: 6, borderRadius: 4, marginBottom: 4 },
   platform: { fontSize: 20, fontWeight: 'bold', color: '#1d4ed8' },
   line: { fontSize: 16, marginTop: 2 },
   late: { color: '#b45309', fontWeight: '600' },

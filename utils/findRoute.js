@@ -14,18 +14,21 @@ function graphOf(station) {
   return graph;
 }
 
-// Turns one move into a sentence a passenger can follow.
-function describe(station, mode, toId, meters) {
-  const to = station.placeById[toId].name;
-  if (mode === 'stairs') return `Take the stairs to ${to} (${meters} m)`;
-  if (mode === 'lift') return `Take the lift to ${to} (${meters} m)`;
-  if (mode === 'ramp') return `Take the ramp to ${to} (${meters} m)`;
-  return `Walk to ${to} (${meters} m)`;
+// Platforms can be marked closed. A place is "on a closed platform" if it is that
+// platform itself or one of its stalls (ids look like p3 and s3_tea).
+export function platformOf(placeId) {
+  const m = /^p(\d+)$/.exec(placeId) || /^s(\d+)_/.exec(placeId);
+  return m ? `p${m[1]}` : null;
+}
+export function isClosedPlace(placeId, closedIds) {
+  const p = platformOf(placeId);
+  return Boolean(p) && (closedIds || []).includes(p);
 }
 
 // Dijkstra's algorithm: the shortest distance from one place to EVERY other place.
 // stepFreeOnly = true means: skip stairs and escalators.
-function shortestPaths(station, fromId, stepFreeOnly) {
+// closedIds = platforms that are closed: the route may not enter them.
+function shortestPaths(station, fromId, stepFreeOnly, closedIds) {
   const graph = graphOf(station);
   const dist = {};
   const cameFrom = {}; // remembers the hop used to reach each place
@@ -46,6 +49,8 @@ function shortestPaths(station, fromId, stepFreeOnly) {
 
     graph[current].forEach((edge) => {
       if (stepFreeOnly && !STEP_FREE_MODES.includes(edge.mode)) return;
+      // (If you are standing on a closed platform, you may still walk off it.)
+      if (isClosedPlace(edge.to, closedIds) && platformOf(edge.to) !== platformOf(fromId)) return;
       const newDist = dist[current] + edge.meters;
       if (newDist < dist[edge.to]) {
         dist[edge.to] = newDist;
@@ -56,8 +61,8 @@ function shortestPaths(station, fromId, stepFreeOnly) {
   return { dist, cameFrom };
 }
 
-// Joins hops that pass through unnamed corridor spots into ONE sentence,
-// so passengers hear "Walk to Concourse (55 m)" and not four tiny steps.
+// Joins hops that pass through unnamed corridor spots into ONE step,
+// so passengers get "Walk to Concourse (55 m)" and not four tiny steps.
 function makeSteps(station, hops) {
   const steps = [];
   let i = 0;
@@ -72,17 +77,17 @@ function makeSteps(station, hops) {
       to = hops[i].to;
       meters += hops[i].meters;
     }
-    steps.push(describe(station, mode, to, meters));
+    steps.push({ mode, toId: to, meters }); // turned into a sentence in utils/i18n.js
     i += 1;
   }
   return steps;
 }
 
 // Route from one place to another.
-// Returns { totalMeters, steps: [text...], path: [placeId...] } or null if no route.
-export function findRoute(station, fromId, toId, stepFreeOnly) {
+// Returns { totalMeters, steps: [{mode, toId, meters}...], path: [placeId...] } or null if no route.
+export function findRoute(station, fromId, toId, stepFreeOnly, closedIds = []) {
   if (!fromId || !toId) return null;
-  const { dist, cameFrom } = shortestPaths(station, fromId, stepFreeOnly);
+  const { dist, cameFrom } = shortestPaths(station, fromId, stepFreeOnly, closedIds);
   if (dist[toId] === Infinity) return null;
 
   const path = [toId];
@@ -99,8 +104,8 @@ export function findRoute(station, fromId, toId, stepFreeOnly) {
 
 // Closest place of one category (e.g. 'restroom') from where you are.
 // Returns { id, meters } or null if none can be reached.
-export function findNearest(station, fromId, category, stepFreeOnly) {
-  const { dist } = shortestPaths(station, fromId, stepFreeOnly);
+export function findNearest(station, fromId, category, stepFreeOnly, closedIds = []) {
+  const { dist } = shortestPaths(station, fromId, stepFreeOnly, closedIds);
   let best = null;
   station.places.forEach((p) => {
     if (p.category !== category || dist[p.id] === Infinity) return;

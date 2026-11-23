@@ -2,6 +2,7 @@ import { memo, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import Svg, { G, Line, Circle, Rect, Text as SvgText } from 'react-native-svg';
 import { activeTrainsAt } from '../utils/trainStatus';
+import { useI18n, mapText, field } from '../utils/i18n';
 
 // Colours of the rooms and stalls. [fill, outline]
 const ROOM_COLORS = {
@@ -34,7 +35,7 @@ function edgePoint(p, q) {
 }
 
 // Draws one drawing instruction from the station's "decor" list.
-function drawItem(item, key) {
+function drawItem(item, key, lang) {
   if (item.k === 'rect') {
     return (
       <Rect key={key} x={item.x} y={item.y} width={item.w} height={item.h} rx={item.rx}
@@ -50,7 +51,7 @@ function drawItem(item, key) {
   return (
     <SvgText key={key} x={item.x} y={item.y} fontSize={item.fs} fill={item.fill}
       textAnchor={item.anchor} fontWeight={item.bold ? 'bold' : 'normal'}>
-      {item.t}
+      {mapText(item.t, lang)}
     </SvgText>
   );
 }
@@ -58,7 +59,8 @@ function drawItem(item, key) {
 // A floor-plan style map (not to scale) of one station: building, platforms,
 // railway tracks, stalls, and trains standing at platforms.
 // Big stations are wider than the screen, so the map scrolls sideways.
-function RouteMap({ station, path, fromId, toId, trains }) {
+function RouteMap({ station, path, fromId, toId, trains, closedIds }) {
+  const { lang, t } = useI18n();
   const { width: screenWidth } = useWindowDimensions();
   const { places, links, placeById, decor } = station;
   const scrollRef = useRef(null);
@@ -109,13 +111,13 @@ function RouteMap({ station, path, fromId, toId, trains }) {
       <View
         style={[styles.box, { height: pxHeight + 2 }]}
         accessibilityRole="image"
-        accessibilityLabel={`Schematic map of ${station.name} with platforms, tracks and stalls. Use the written directions to follow the route.`}
+        accessibilityLabel={t('mapLabel', { name: field(station, 'name', lang) })}
       >
         <ScrollView ref={scrollRef} horizontal showsHorizontalScrollIndicator={scrolls}>
           <View style={{ width: pxWidth, height: pxHeight }}>
             <Svg width="100%" height="100%" viewBox={`0 0 ${decor.width} ${decor.height}`}>
               {/* Ground, building, platforms, tracks (from the station template) */}
-              {decor.base.map((item, i) => drawItem(item, `b${i}`))}
+              {decor.base.map((item, i) => drawItem(item, `b${i}`, lang))}
 
               {/* Corridors and walkways: grey edge first, then white on top */}
               {drawLinks.map((l) => (
@@ -152,11 +154,22 @@ function RouteMap({ station, path, fromId, toId, trains }) {
                     <Rect x={p.x - p.box[0] / 2} y={p.y - p.box[1] / 2} width={p.box[0]} height={p.box[1]}
                       rx="3" fill={colors[0]} stroke={outline} strokeWidth={width} />
                     <SvgText x={p.x} y={p.y + 2.5} fontSize={p.box[0] < 40 ? 6.5 : 7} fill="#111827" textAnchor="middle">
-                      {p.short}
+                      {mapText(p.short, lang)}
                     </SvgText>
                   </G>
                 );
               })}
+
+              {/* Closed platforms: a red cover over the whole platform strip */}
+              {decor.geo
+                .filter((g) => (closedIds || []).includes(g.id))
+                .map((g) => (
+                  <G key={`closed-${g.id}`}>
+                    <Rect x={g.x - 15} y={g.top} width={30} height={g.bottom - g.top} fill="#b91c1c" fillOpacity="0.28" />
+                    <Line x1={g.x - 15} y1={g.top} x2={g.x + 15} y2={g.bottom} stroke="#b91c1c" strokeWidth="1.5" />
+                    <Line x1={g.x + 15} y1={g.top} x2={g.x - 15} y2={g.bottom} stroke="#b91c1c" strokeWidth="1.5" />
+                  </G>
+                ))}
 
               {/* The route, in blue, on top of everything */}
               {drawLinks
@@ -176,7 +189,7 @@ function RouteMap({ station, path, fromId, toId, trains }) {
                   return <Circle key={p.id} cx={p.x} cy={p.y} r={r} fill={color} stroke="#ffffff" strokeWidth="1" />;
                 })}
 
-              {decor.over.map((item, i) => drawItem(item, `o${i}`))}
+              {decor.over.map((item, i) => drawItem(item, `o${i}`, lang))}
 
               {/* Next to each platform: its name, and the next train (number if it is
                   standing there, otherwise the expected time and delay) */}
@@ -187,7 +200,11 @@ function RouteMap({ station, path, fromId, toId, trains }) {
                 if (p.id === toId) color = END;
                 const next = activeTrainsAt(trains || [], p.id)[0];
                 let line = '';
-                if (next) {
+                const closed = (closedIds || []).includes(p.id);
+                if (closed) {
+                  line = mapText('CLOSED', lang);
+                  color = '#b91c1c';
+                } else if (next) {
                   line = next.state === 'at_platform'
                     ? next.number
                     : `${next.expected}${next.delayMin > 0 ? ` +${next.delayMin}` : ''}`;
@@ -195,9 +212,9 @@ function RouteMap({ station, path, fromId, toId, trains }) {
                 return (
                   <G key={`board-${p.id}`}>
                     <SvgText x={g.x} y={g.boardY} fontSize="9" fontWeight="bold" fill={color} textAnchor="middle">
-                      {p.short}
+                      {mapText(p.short, lang)}
                     </SvgText>
-                    <SvgText x={g.x} y={g.boardY2} fontSize="7" fill="#374151" textAnchor="middle">
+                    <SvgText x={g.x} y={g.boardY2} fontSize="7" fill={closed ? '#b91c1c' : '#374151'} fontWeight={closed ? 'bold' : 'normal'} textAnchor="middle">
                       {line}
                     </SvgText>
                   </G>
@@ -207,7 +224,7 @@ function RouteMap({ station, path, fromId, toId, trains }) {
           </View>
         </ScrollView>
       </View>
-      {scrolls && <Text style={styles.hint}>This station is wide. Scroll the map sideways.</Text>}
+      {scrolls && <Text style={styles.hint}>{t('wide')}</Text>}
     </View>
   );
 }

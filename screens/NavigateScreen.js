@@ -1,11 +1,13 @@
 import { useMemo } from 'react';
 import { ScrollView, View, Text, Pressable, Switch, StyleSheet } from 'react-native';
 import * as Speech from 'expo-speech';
-import { DATA_SOURCE_NOTE } from '../data/stationList';
-import { findRoute, findNearest } from '../utils/findRoute';
+import { DATA_SOURCE_NOTE, DATA_SOURCE_NOTE_HI } from '../data/stationList';
+import { findRoute, findNearest, isClosedPlace } from '../utils/findRoute';
+import { useI18n, nameText, field, stepText, delayText, whenText } from '../utils/i18n';
 import { activeTrainsAt } from '../utils/trainStatus';
 import PlaceSelector from '../components/PlaceSelector';
 import RouteMap from '../components/RouteMap';
+import ClosedPlatforms from '../components/ClosedPlatforms';
 
 export default function NavigateScreen({
   station,
@@ -15,15 +17,20 @@ export default function NavigateScreen({
   setToId,
   stepFreeOnly,
   setStepFreeOnly,
+  closedIds,
+  toggleClosed,
   trains,
   trackedTrain,
   onStopTracking,
 }) {
-  // useMemo = only recalculate the route when one of these three values changes.
+  const { lang, t } = useI18n();
+  // useMemo = only recalculate the route when one of these values changes.
   const route = useMemo(
-    () => (toId && fromId !== toId ? findRoute(station, fromId, toId, stepFreeOnly) : null),
-    [station, fromId, toId, stepFreeOnly]
+    () => (toId && fromId !== toId ? findRoute(station, fromId, toId, stepFreeOnly, closedIds) : null),
+    [station, fromId, toId, stepFreeOnly, closedIds]
   );
+  const destClosed = Boolean(toId) && isClosedPlace(toId, closedIds);
+  const pname = (id) => nameText(placeById[id].name, lang);
 
   // Trains still to come at the platform you are heading to (if it is a platform).
   const { placeById } = station;
@@ -31,105 +38,109 @@ export default function NavigateScreen({
 
   // Emergency buttons: set the destination to the nearest police booth / medical room.
   function goToNearest(category) {
-    const nearest = findNearest(station, fromId, category, stepFreeOnly);
+    const nearest = findNearest(station, fromId, category, stepFreeOnly, closedIds);
     if (nearest) setToId(nearest.id);
   }
 
   function speak() {
-    // The route can disappear if a selection changes before this handler runs.
-    if (!route || !Array.isArray(route.steps) || route.steps.length === 0) return;
     Speech.stop(); // stop anything already being read
-    Speech.speak(route.steps.join('. '), { language: 'en-IN' });
+    Speech.speak(route.steps.map((s) => stepText(s, station, lang)).join('. '), {
+      language: lang === 'hi' ? 'hi-IN' : 'en-IN',
+    });
   }
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Station Navigator</Text>
+      <Text style={styles.title}>{t('title')}</Text>
       <Text style={styles.subtitle}>
-        {station.name} ({station.id}), {station.city} - {station.platforms} platforms
+        {t('subtitle', { name: field(station, 'name', lang), id: station.id, city: field(station, 'city', lang), n: station.platforms })}
       </Text>
       <Text style={styles.sourceNote}>
-        {DATA_SOURCE_NOTE}
-        {station.note ? ` ${station.note}` : ''}
+        {lang === 'hi' ? DATA_SOURCE_NOTE_HI : DATA_SOURCE_NOTE}
+        {station.note ? ` ${field(station, 'note', lang)}` : ''}
       </Text>
 
       {trackedTrain && (
         <View style={styles.tracking}>
           <Text style={styles.trackingTitle}>
-            Tracking {trackedTrain.name} ({trackedTrain.number})
+            {t('tracking', { name: field(trackedTrain, 'name', lang), num: trackedTrain.number })}
           </Text>
           {trackedTrain.platformChanged && (
             <Text style={styles.changed}>
-              PLATFORM CHANGED: now {placeById[trackedTrain.platformId].name} (was{' '}
-              {placeById[trackedTrain.previousPlatformId].name}). Directions are updated.
+              {t('platformChangedNow', { now: pname(trackedTrain.platformId), was: pname(trackedTrain.previousPlatformId) })}
             </Text>
           )}
+          {isClosedPlace(trackedTrain.platformId, closedIds) && (
+            <Text style={styles.closedBanner}>{t('trackedClosed')}</Text>
+          )}
           <Text style={styles.trackingText}>
-            {placeById[trackedTrain.platformId].name} - expected {trackedTrain.expected} -{' '}
-            {trackedTrain.delayText}. {trackedTrain.whenText}.
+            {t('trackingLine', { p: pname(trackedTrain.platformId), e: trackedTrain.expected, delay: delayText(trackedTrain, lang), when: whenText(trackedTrain, lang) })}
           </Text>
           <Pressable onPress={onStopTracking} accessibilityRole="button">
-            <Text style={styles.stopTracking}>Stop tracking</Text>
+            <Text style={styles.stopTracking}>{t('stopTracking')}</Text>
           </Pressable>
         </View>
       )}
 
-      <PlaceSelector title="From" selectedId={fromId} onSelect={setFromId} choices={station.choosable} placeById={placeById} />
-      <PlaceSelector title="To" selectedId={toId} onSelect={setToId} choices={station.choosable} placeById={placeById} />
+      <PlaceSelector title={t('from')} selectedId={fromId} onSelect={setFromId} choices={station.choosable} placeById={placeById} closedIds={closedIds} />
+      <PlaceSelector title={t('to')} selectedId={toId} onSelect={setToId} choices={station.choosable} placeById={placeById} closedIds={closedIds} />
 
       <View style={styles.switchRow}>
-        <Text style={styles.switchLabel}>Step-free route only (no stairs)</Text>
+        <Text style={styles.switchLabel}>{t('stepFree')}</Text>
         <Switch
           value={stepFreeOnly}
           onValueChange={setStepFreeOnly}
-          accessibilityLabel="Step-free route only"
+          accessibilityLabel={t('stepFreeLabel')}
         />
       </View>
+
+      <ClosedPlatforms station={station} closedIds={closedIds} onToggle={toggleClosed} />
 
       <View style={styles.buttonRow}>
         <Pressable
           style={[styles.button, styles.police]}
           onPress={() => goToNearest('police')}
           accessibilityRole="button"
-          accessibilityLabel="Directions to the nearest police help booth"
+          accessibilityLabel={t('nearestPoliceLabel')}
         >
-          <Text style={styles.buttonText}>Nearest Police</Text>
+          <Text style={styles.buttonText}>{t('nearestPolice')}</Text>
         </Pressable>
         <Pressable
           style={[styles.button, styles.medical]}
           onPress={() => goToNearest('medical')}
           accessibilityRole="button"
-          accessibilityLabel="Directions to the nearest medical room"
+          accessibilityLabel={t('nearestMedicalLabel')}
         >
-          <Text style={styles.buttonText}>Nearest Medical</Text>
+          <Text style={styles.buttonText}>{t('nearestMedical')}</Text>
         </Pressable>
       </View>
 
       <View style={styles.result}>
-        <Text style={styles.heading}>Directions</Text>
-        {!toId && <Text style={styles.hint}>Choose a destination above.</Text>}
-        {toId && fromId === toId && <Text style={styles.hint}>You are already here.</Text>}
-        {toId && fromId !== toId && !route && (
-          <Text style={styles.hint}>No {stepFreeOnly ? 'step-free ' : ''}route found.</Text>
+        <Text style={styles.heading}>{t('directions')}</Text>
+        {!toId && <Text style={styles.hint}>{t('chooseDest')}</Text>}
+        {toId && fromId === toId && <Text style={styles.hint}>{t('alreadyHere')}</Text>}
+        {destClosed && fromId !== toId && <Text style={styles.closedBanner}>{t('destClosed')}</Text>}
+        {toId && fromId !== toId && !route && !destClosed && (
+          <Text style={styles.hint}>{stepFreeOnly ? t('noRouteStepFree') : t('noRoute')}</Text>
         )}
-        {route && Array.isArray(route.steps) && route.steps.length > 0 && (
+        {route && (
           <View>
-            <Text style={styles.total}>About {route.totalMeters} m (sample distances)</Text>
+            <Text style={styles.total}>{t('aboutMeters', { m: route.totalMeters })}</Text>
             {route.steps.map((step, index) => (
               <Text key={index} style={styles.step}>
-                {index + 1}. {step}
+                {index + 1}. {stepText(step, station, lang)}
               </Text>
             ))}
             <View style={styles.buttonRow}>
               <Pressable style={styles.button} onPress={speak} accessibilityRole="button">
-                <Text style={styles.buttonText}>Read aloud</Text>
+                <Text style={styles.buttonText}>{t('readAloud')}</Text>
               </Pressable>
               <Pressable
                 style={[styles.button, styles.buttonLight]}
                 onPress={() => Speech.stop()}
                 accessibilityRole="button"
               >
-                <Text style={[styles.buttonText, styles.buttonTextDark]}>Stop</Text>
+                <Text style={[styles.buttonText, styles.buttonTextDark]}>{t('stop')}</Text>
               </Pressable>
             </View>
           </View>
@@ -138,26 +149,26 @@ export default function NavigateScreen({
 
       {trainsHere.length > 0 && (
         <View style={styles.result}>
-          <Text style={styles.heading}>Trains at {placeById[toId].name} (sample)</Text>
-          {trainsHere.map((t) => (
-            <Text key={t.id} style={styles.line}>
-              {t.expected} - {t.name} ({t.number}) - {t.delayText}. {t.whenText}.
+          <Text style={styles.heading}>{t('trainsAt', { p: pname(toId) })}</Text>
+          {trainsHere.map((tr) => (
+            <Text key={tr.id} style={styles.line}>
+              {tr.expected} - {field(tr, 'name', lang)} ({tr.number}) - {delayText(tr, lang)}. {whenText(tr, lang)}.
             </Text>
           ))}
         </View>
       )}
 
-      <Text style={[styles.heading, styles.mapHeading]}>Station map</Text>
-      <RouteMap station={station} path={route ? route.path : null} fromId={fromId} toId={toId} trains={trains} />
+      <Text style={[styles.heading, styles.mapHeading]}>{t('stationMap')}</Text>
+      <RouteMap station={station} path={route ? route.path : null} fromId={fromId} toId={toId} trains={trains} closedIds={closedIds} />
       <Text style={styles.legend}>
-        <Text style={{ color: '#15803d', fontWeight: 'bold' }}>Green = start</Text>
+        <Text style={{ color: '#15803d', fontWeight: 'bold' }}>{t('legendStart')}</Text>
         {'   '}
-        <Text style={{ color: '#b91c1c', fontWeight: 'bold' }}>Red = destination</Text>
+        <Text style={{ color: '#b91c1c', fontWeight: 'bold' }}>{t('legendDest')}</Text>
         {'   '}
-        <Text style={{ color: '#1d4ed8', fontWeight: 'bold' }}>Blue line = route</Text>
+        <Text style={{ color: '#1d4ed8', fontWeight: 'bold' }}>{t('legendRoute')}</Text>
       </Text>
       <Text style={styles.legend}>
-        Schematic drawing, not to scale. This is NOT the real layout of {station.name}. Sample trains only.
+        {t('schematic', { name: field(station, 'name', lang) })}
       </Text>
     </ScrollView>
   );
@@ -186,6 +197,7 @@ const styles = StyleSheet.create({
   trackingTitle: { fontSize: 16, fontWeight: 'bold', color: '#15803d' },
   trackingText: { fontSize: 15, marginTop: 4 },
   changed: { fontSize: 15, fontWeight: 'bold', color: '#ffffff', backgroundColor: '#7c3aed', padding: 6, borderRadius: 4, marginTop: 6 },
+  closedBanner: { fontSize: 15, fontWeight: 'bold', color: '#ffffff', backgroundColor: '#b91c1c', padding: 6, borderRadius: 4, marginTop: 6 },
   stopTracking: { color: '#1d4ed8', fontWeight: '600', fontSize: 15, marginTop: 8 },
   legend: { fontSize: 13, color: '#555555', marginBottom: 4 },
   buttonRow: { flexDirection: 'row', marginBottom: 12 },

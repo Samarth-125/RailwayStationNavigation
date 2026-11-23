@@ -115,7 +115,7 @@ function buildThrough(n) {
     base.push(line(tx - 4, 25, tx - 4, 270, '#57534e', 1.2));
     base.push(line(tx + 4, 25, tx + 4, 270, '#57534e', 1.2));
     base.push(text(tx, 279, `Track ${k}`, 6, '#57534e'));
-    geo.push({ id: `p${k}`, x: px, trackX: tx, coachY0: 54, coachN: 8, boardY: 291, boardY2: 302 });
+    geo.push({ id: `p${k}`, x: px, trackX: tx, coachY0: 54, coachN: 8, boardY: 291, boardY2: 302, top: 25, bottom: 270 });
   }
   base.push(rect(70, 33, x(n) + 33 - 70, 14, '#cbd5e1', '#64748b', 1));
   base.push(text(180, 43, 'FOOTBRIDGE', 7, '#475569'));
@@ -184,7 +184,7 @@ function buildTerminus(n) {
     base.push(line(tx + 4, 35, tx + 4, 222, '#57534e', 1.2));
     base.push(rect(tx - 6, 219, 12, 5, '#57534e')); // buffer stop
     base.push(text(tx, 32, `Track ${k}`, 6, '#57534e'));
-    geo.push({ id: `p${k}`, x: px, trackX: tx, coachY0: 40, coachN: 7, boardY: 12, boardY2: 23 });
+    geo.push({ id: `p${k}`, x: px, trackX: tx, coachY0: 40, coachN: 7, boardY: 12, boardY2: 23, top: 35, bottom: 225 });
   }
   const over = [text(10, 311, 'Entrance', 7, '#111827', 'start', true)];
   return { places, links, decor: { width, height: 325, base, over, geo } };
