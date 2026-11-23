@@ -1,25 +1,50 @@
-import { View, Text, Pressable, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, Pressable, FlatList, ActivityIndicator, Switch, StyleSheet } from 'react-native';
+import { isLiveConfigured } from '../services/liveTrainService';
 import { toClock } from '../utils/trainStatus';
 import { isClosedPlace } from '../utils/findRoute';
 import { useI18n, nameText, field, delayText, whenText } from '../utils/i18n';
 
 // Shows each sample train: which platform, when it comes, delays, platform changes.
 // The data comes from App.js (hooks/useTrains.js).
-export default function TrainsScreen({ station, trainData, trackedTrainId, onTrack, closedIds }) {
+export default function TrainsScreen({ station, trainData, trackedTrainId, onTrack, closedIds, useLive, setUseLive }) {
   const { lang, t } = useI18n();
   const { placeById } = station;
-  const { trains, nowMin, note, noteHi, loading, error, reload, nextUpdate, resetDemo, isLastStep } = trainData;
+  const { source, trains, nowMin, note, noteHi, loading, error, liveError, updatedAt, reload, nextUpdate, resetDemo, isLastStep } = trainData;
+  const configured = isLiveConfigured();
 
   return (
     <View style={styles.screen}>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>{t('trainBoard')}</Text>
+        <Text style={styles.title}>{source === 'LIVE' ? t('trainBoardLive') : t('trainBoard')}</Text>
         <Pressable onPress={reload} accessibilityRole="button" accessibilityLabel={t('refreshLabel')}>
           <Text style={styles.refresh}>{t('refresh')}</Text>
         </Pressable>
       </View>
 
-      {/* Demo controls: they replay a pretend story. Remove when real data is connected. */}
+      {/* Choose where the trains come from */}
+      <View style={styles.sourceBox}>
+        <View style={styles.sourceRow}>
+          <Text style={styles.sourceLabel}>{t('liveSwitch')}</Text>
+          <Switch
+            value={useLive}
+            onValueChange={setUseLive}
+            disabled={!configured}
+            accessibilityLabel={t('liveSwitch')}
+          />
+        </View>
+        {!configured && <Text style={styles.sourceNote}>{t('liveNoKey')}</Text>}
+        {source === 'LIVE' && (
+          <Text style={styles.sourceNote}>
+            {t('liveUpdated', { t: updatedAt })} {t('liveWatch')}
+          </Text>
+        )}
+        {liveError && (
+          <Text style={styles.liveFailed}>{t('liveFailed', { why: t(`live_${liveError}`) })}</Text>
+        )}
+      </View>
+
+      {/* Demo controls: they replay a pretend story. Only for SAMPLE data. */}
+      {source === 'SAMPLE' && (
       <View style={styles.demo}>
         <Text style={styles.demoTitle}>{t('demoClock', { t: toClock(nowMin) })}</Text>
         <Text style={styles.demoNote}>{lang === 'hi' && noteHi ? noteHi : note}</Text>
@@ -37,6 +62,7 @@ export default function TrainsScreen({ station, trainData, trackedTrainId, onTra
           </Pressable>
         </View>
       </View>
+      )}
 
       {loading && <ActivityIndicator size="large" style={styles.loader} />}
       {error && <Text style={styles.error}>{t('loadError')}</Text>}
@@ -46,7 +72,7 @@ export default function TrainsScreen({ station, trainData, trackedTrainId, onTra
           data={trains}
           keyExtractor={(t) => t.id}
           renderItem={({ item }) => {
-            const platform = nameText(placeById[item.platformId].name, lang);
+            const platform = item.platformId ? nameText(placeById[item.platformId].name, lang) : t('platformUnknown');
             const closed = isClosedPlace(item.platformId, closedIds);
             const finished = item.state === 'departed' || item.state === 'cancelled';
             const tracking = item.id === trackedTrainId;
@@ -57,7 +83,7 @@ export default function TrainsScreen({ station, trainData, trackedTrainId, onTra
                 </Text>
                 <Text style={styles.route}>{field(item, 'route', lang)}</Text>
 
-                {item.platformChanged && (
+                {item.platformChanged && item.previousPlatformId && (
                   <Text style={styles.changed}>
                     {t('platformChangedWas', { p: nameText(placeById[item.previousPlatformId].name, lang) })}
                   </Text>
@@ -72,7 +98,7 @@ export default function TrainsScreen({ station, trainData, trackedTrainId, onTra
                   {delayText(item, lang)}. {whenText(item, lang)}.
                 </Text>
 
-                {!finished && (
+                {!finished && item.platformId && (
                   <Pressable
                     style={[styles.button, tracking && styles.buttonOn]}
                     onPress={() => onTrack(item.id)}
@@ -98,6 +124,11 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { fontSize: 22, fontWeight: 'bold' },
   refresh: { color: '#1d4ed8', fontSize: 16, fontWeight: '600', padding: 8 },
+  sourceBox: { backgroundColor: '#ffffff', borderRadius: 14, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#e2e8f0' },
+  sourceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sourceLabel: { fontSize: 16, fontWeight: '600', flex: 1, marginRight: 12 },
+  sourceNote: { fontSize: 13, color: '#555555', marginTop: 6 },
+  liveFailed: { fontSize: 14, fontWeight: 'bold', color: '#ffffff', backgroundColor: '#b91c1c', padding: 8, borderRadius: 6, marginTop: 8 },
   demo: { backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#f59e0b', borderRadius: 14, padding: 14, marginBottom: 14 },
   demoTitle: { fontSize: 16, fontWeight: 'bold' },
   demoNote: { fontSize: 14, color: '#555555', marginBottom: 8 },

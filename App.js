@@ -24,14 +24,15 @@ export default function App() {
   const [stepFreeOnly, setStepFreeOnly] = useState(false);
   const [lang, setLang] = useState('en'); // 'en' or 'hi'
   const [closedIds, setClosedIds] = useState([]); // platforms marked closed (demo switch)
-  const trainData = useTrains();
+  const [useLive, setUseLive] = useState(false); // false = SAMPLE trains, true = live (needs a key in config.js)
 
   const station = getStation(stationId); // built once per station, then remembered
+  const trainData = useTrains(station, useLive);
 
   // If you are tracking a train, the destination is that train's CURRENT platform.
   // So when the platform changes, the route updates by itself.
   const trackedTrain = trainData.trains.find((t) => t.id === trackedTrainId) || null;
-  const toId = trackedTrain ? trackedTrain.platformId : chosenToId;
+  const toId = trackedTrain ? trackedTrain.platformId : chosenToId; // (null if the platform is not announced)
 
   function setToId(placeId) {
     setTrackedTrainId(null); // picking a place by hand stops tracking
@@ -70,9 +71,9 @@ export default function App() {
     <LangContext.Provider value={lang}>
     <SafeAreaView style={styles.screen}>
       {/* Demo warning: always visible, on every tab */}
-      <View style={styles.banner} accessibilityRole="alert">
+      <View style={[styles.banner, trainData.source === 'LIVE' && styles.bannerLive]} accessibilityRole="alert">
         <Text style={styles.bannerText}>
-          {t('demoBanner')}
+          {trainData.source === 'LIVE' ? t('liveBanner') : t('demoBanner')}
         </Text>
       </View>
 
@@ -103,6 +104,7 @@ export default function App() {
             closedIds={closedIds}
             toggleClosed={toggleClosed}
             trains={trainData.trains}
+            trainSource={trainData.source}
             trackedTrain={trackedTrain}
             onStopTracking={() => setTrackedTrainId(null)}
           />
@@ -114,6 +116,8 @@ export default function App() {
             trackedTrainId={trackedTrainId}
             onTrack={trackTrain}
             closedIds={closedIds}
+            useLive={useLive}
+            setUseLive={setUseLive}
           />
         )}
         {tab === 'Facilities' && (
@@ -152,6 +156,7 @@ export default function App() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#ffffff' },
   banner: { backgroundColor: '#b45309', paddingVertical: 6, paddingHorizontal: 12 },
+  bannerLive: { backgroundColor: '#0f766e' },
   bannerText: { color: '#ffffff', fontWeight: 'bold', textAlign: 'center', fontSize: 12 },
   topRow: { flexDirection: 'row', backgroundColor: '#0f172a', alignItems: 'center' },
   stationBar: { flex: 1 },

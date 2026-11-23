@@ -58,6 +58,20 @@ const STRINGS = {
     cat_police: 'Police help', cat_medical: 'Medical help', cat_restroom: 'Restrooms',
     cat_food: 'Food and tea stalls', cat_water: 'Drinking water', cat_atm: 'ATM',
     cat_help: 'Help desk', cat_waiting: 'Waiting room', cat_ticket: 'Ticket counter',
+    delayUnknown: 'Delay not known', platformUnknown: 'Platform not announced yet',
+    liveBanner: 'LIVE DATA from a third-party service (RailRadar), not directly from Indian Railways. It can be late or wrong. Maps are still schematic.',
+    trainBoardLive: 'Train board (LIVE, third-party)', trainsAtLive: 'Trains at {p}',
+    schematicLive: 'Schematic drawing, not to scale. This is NOT the real layout of {name}. Train times come from a third-party live service.',
+    liveSwitch: 'Use live data (RailRadar, unofficial)',
+    liveNoKey: 'Live data is off. To turn it on, get a free API key from railradar.in and paste it into config.js. Until then the app shows SAMPLE trains.',
+    liveUpdated: 'Live data. Last updated {t} (India time). Refreshes every 5 minutes.',
+    liveWatch: 'Platform changes are noticed only while the app is open. Cancelled trains are not shown as cancelled.',
+    liveFailed: 'Live data failed: {why} Showing SAMPLE data instead.',
+    live_nokey: 'no API key in config.js.', live_auth: 'the API key was rejected.',
+    live_limit: 'the free request limit is used up for now.', live_network: 'no internet or the server did not answer.',
+    live_server: 'the server had a problem.', live_format: 'the answer was not in the expected format.',
+    view2d: '2D', view3d: '3D', viewLabel: 'Map view',
+    schematic3d: '3D view is a simple drawing to help you picture the station. It is NOT a real model.',
     stepStairs: 'Take the stairs to {to} ({m} m)', stepLift: 'Take the lift to {to} ({m} m)',
     stepRamp: 'Take the ramp to {to} ({m} m)', stepWalk: 'Walk to {to} ({m} m)',
   },
@@ -112,6 +126,20 @@ const STRINGS = {
     cat_police: 'पुलिस सहायता', cat_medical: 'चिकित्सा सहायता', cat_restroom: 'शौचालय',
     cat_food: 'खाने और चाय के स्टॉल', cat_water: 'पीने का पानी', cat_atm: 'एटीएम',
     cat_help: 'सहायता डेस्क', cat_waiting: 'प्रतीक्षालय', cat_ticket: 'टिकट काउंटर',
+    delayUnknown: 'देरी की जानकारी नहीं', platformUnknown: 'प्लेटफॉर्म अभी घोषित नहीं हुआ',
+    liveBanner: 'लाइव डेटा एक थर्ड-पार्टी सेवा (RailRadar) से है, सीधे भारतीय रेल से नहीं। यह देर से या गलत हो सकता है। नक्शे अब भी योजनाबद्ध हैं।',
+    trainBoardLive: 'ट्रेन बोर्ड (लाइव, थर्ड-पार्टी)', trainsAtLive: '{p} पर ट्रेनें',
+    schematicLive: 'योजनाबद्ध चित्र, पैमाने के अनुसार नहीं। यह {name} का असली नक्शा नहीं है। ट्रेन के समय थर्ड-पार्टी लाइव सेवा से आते हैं।',
+    liveSwitch: 'लाइव डेटा इस्तेमाल करें (RailRadar, अनधिकृत)',
+    liveNoKey: 'लाइव डेटा बंद है। चालू करने के लिए railradar.in से मुफ़्त API key लें और config.js में डालें। तब तक ऐप नमूना ट्रेनें दिखाएगा।',
+    liveUpdated: 'लाइव डेटा। आख़िरी अपडेट {t} (भारतीय समय)। हर 5 मिनट में ताज़ा होता है।',
+    liveWatch: 'प्लेटफॉर्म बदलाव तभी पता चलता है जब ऐप खुला हो। रद्द ट्रेनें रद्द के रूप में नहीं दिखतीं।',
+    liveFailed: 'लाइव डेटा नहीं मिला: {why} इसलिए नमूना डेटा दिख रहा है।',
+    live_nokey: 'config.js में API key नहीं है।', live_auth: 'API key स्वीकार नहीं हुई।',
+    live_limit: 'मुफ़्त अनुरोध सीमा अभी पूरी हो गई है।', live_network: 'इंटरनेट नहीं है या सर्वर ने जवाब नहीं दिया।',
+    live_server: 'सर्वर में समस्या है।', live_format: 'जवाब अपेक्षित रूप में नहीं था।',
+    view2d: '2D', view3d: '3D', viewLabel: 'नक्शे का रूप',
+    schematic3d: '3D रूप स्टेशन की कल्पना करने के लिए एक सरल चित्र है। यह असली मॉडल नहीं है।',
     stepStairs: '{to} तक सीढ़ियों से जाएँ ({m} मी)', stepLift: '{to} तक लिफ्ट से जाएँ ({m} मी)',
     stepRamp: '{to} तक रैंप से जाएँ ({m} मी)', stepWalk: '{to} तक पैदल चलें ({m} मी)',
   },
@@ -197,6 +225,7 @@ export function stepText(step, station, lang) {
 }
 
 export function delayText(train, lang) {
+  if (train.delayKnown === false) return t(lang, 'delayUnknown');
   return train.delayMin > 0 ? t(lang, 'delayed', { n: train.delayMin }) : t(lang, 'onTime');
 }
 
