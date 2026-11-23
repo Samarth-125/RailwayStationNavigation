@@ -66,12 +66,14 @@ export default memo(PlaceSelector);
 
 const styles = StyleSheet.create({
   field: {
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#1d4ed8',
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    borderColor: '#bfdbfe',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     marginBottom: 10,
+    shadowColor: '#000000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
   fieldTitle: { fontSize: 13, color: '#555555' },
   fieldValue: { fontSize: 18, fontWeight: '600', color: '#1d4ed8' },

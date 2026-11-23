@@ -20,7 +20,7 @@ const ROOM_COLORS = {
 const START = '#15803d'; // green
 const END = '#b91c1c'; // red
 const ROUTE = '#1d4ed8'; // blue
-const PX_PER_UNIT = 1.05; // how big the map is drawn on screen
+const PX_PER_UNIT = 1.7; // how big the map is drawn on screen
 
 // If a place is a room (has a box), a line should stop at the room's wall,
 // not poke through its middle. This finds that point on the wall.
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#eef2f7',
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    borderRadius: 8,
+    borderRadius: 14,
     marginBottom: 8,
     overflow: 'hidden',
   },

@@ -9,9 +9,9 @@ import useTrains from './hooks/useTrains';
 import { getStation } from './data/buildStation';
 
 const TABS = [
-  { key: 'Navigate', label: 'tabNavigate' },
-  { key: 'Trains', label: 'tabTrains' },
-  { key: 'Facilities', label: 'tabFacilities' },
+  { key: 'Navigate', label: 'tabNavigate', icon: '🧭' },
+  { key: 'Trains', label: 'tabTrains', icon: '🚆' },
+  { key: 'Facilities', label: 'tabFacilities', icon: '🏥' },
 ];
 
 export default function App() {
@@ -128,16 +128,17 @@ export default function App() {
       </View>
 
       <View style={styles.tabBar}>
-        {TABS.map(({ key, label }) => {
+        {TABS.map(({ key, label, icon }) => {
           const selected = tab === key;
           return (
             <Pressable
               key={key}
-              style={styles.tab}
+              style={[styles.tab, selected && styles.tabSelected]}
               onPress={() => setTab(key)}
               accessibilityRole="tab"
               accessibilityState={{ selected }}
             >
+              <Text style={styles.tabIcon}>{icon}</Text>
               <Text style={[styles.tabText, selected && styles.tabTextSelected]}>{t(label)}</Text>
             </Pressable>
           );
@@ -150,15 +151,17 @@ export default function App() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#ffffff' },
-  banner: { backgroundColor: '#b45309', padding: 10 },
-  bannerText: { color: '#ffffff', fontWeight: 'bold', textAlign: 'center' },
-  topRow: { flexDirection: 'row', backgroundColor: '#1e293b', alignItems: 'center' },
+  banner: { backgroundColor: '#b45309', paddingVertical: 6, paddingHorizontal: 12 },
+  bannerText: { color: '#ffffff', fontWeight: 'bold', textAlign: 'center', fontSize: 12 },
+  topRow: { flexDirection: 'row', backgroundColor: '#0f172a', alignItems: 'center' },
   stationBar: { flex: 1 },
-  langButton: { borderWidth: 1, borderColor: '#ffffff', borderRadius: 6, paddingVertical: 4, paddingHorizontal: 10, marginRight: 10 },
+  langButton: { backgroundColor: '#1d4ed8', borderRadius: 20, paddingVertical: 8, paddingHorizontal: 14, marginRight: 14 },
   langText: { color: '#ffffff', fontWeight: 'bold', fontSize: 15 },
-  body: { flex: 1 },
-  tabBar: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#e5e7eb' },
-  tab: { flex: 1, alignItems: 'center', paddingVertical: 14 },
-  tabText: { fontSize: 16, color: '#555555' },
+  body: { flex: 1, backgroundColor: '#f1f5f9' },
+  tabBar: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#e5e7eb', backgroundColor: '#ffffff' },
+  tab: { flex: 1, alignItems: 'center', paddingVertical: 8, borderTopWidth: 3, borderTopColor: 'transparent' },
+  tabSelected: { borderTopColor: '#1d4ed8' },
+  tabIcon: { fontSize: 20 },
+  tabText: { fontSize: 13, color: '#555555' },
   tabTextSelected: { color: '#1d4ed8', fontWeight: 'bold' },
 });

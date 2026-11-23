@@ -31,9 +31,14 @@ function StationSelector({ station, onSelect }) {
         accessibilityRole="button"
         accessibilityLabel={`${t('station')}: ${field(station, 'name', lang)}. ${t('tapChangeStation')}`}
       >
-        <Text style={styles.barText} numberOfLines={1}>
-          {t('station')}: {field(station, 'name', lang)} ({station.id})  ▾
-        </Text>
+        <View style={styles.barLeft}>
+          <Text style={styles.barLabel}>{t('station').toUpperCase()}</Text>
+          <Text style={styles.barName} numberOfLines={1}>{field(station, 'name', lang)}</Text>
+          <Text style={styles.barInfo} numberOfLines={1}>
+            {station.id} · {field(station, 'city', lang)} · {t('platformsCount', { n: station.platforms })}
+          </Text>
+        </View>
+        <Text style={styles.barArrow}>▾</Text>
       </Pressable>
 
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
@@ -85,8 +90,12 @@ function StationSelector({ station, onSelect }) {
 export default memo(StationSelector);
 
 const styles = StyleSheet.create({
-  bar: { backgroundColor: '#1e293b', paddingVertical: 10, paddingHorizontal: 14 },
-  barText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
+  bar: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16 },
+  barLeft: { flex: 1 },
+  barLabel: { color: '#94a3b8', fontSize: 11, fontWeight: 'bold', letterSpacing: 1 },
+  barName: { color: '#ffffff', fontSize: 22, fontWeight: 'bold' },
+  barInfo: { color: '#cbd5e1', fontSize: 13, marginTop: 1 },
+  barArrow: { color: '#ffffff', fontSize: 20, marginLeft: 8 },
   modal: { flex: 1, backgroundColor: '#ffffff' },
   header: {
     flexDirection: 'row',

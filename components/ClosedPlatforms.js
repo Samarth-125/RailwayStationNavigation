@@ -52,7 +52,7 @@ export default function ClosedPlatforms({ station, closedIds, onToggle }) {
 }
 
 const styles = StyleSheet.create({
-  box: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, padding: 10, marginBottom: 12 },
+  box: { backgroundColor: '#ffffff', borderRadius: 14, padding: 14, marginBottom: 12, shadowColor: '#000000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   header: { fontSize: 15, fontWeight: '600', color: '#111827' },
   hint: { fontSize: 13, color: '#555555', marginTop: 6 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
