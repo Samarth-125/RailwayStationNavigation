@@ -4,18 +4,23 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import NavigateScreen from './screens/NavigateScreen';
 import TrainsScreen from './screens/TrainsScreen';
 import FacilitiesScreen from './screens/FacilitiesScreen';
+import StationSelector from './components/StationSelector';
 import useTrains from './hooks/useTrains';
+import { getStation } from './data/buildStation';
 
 const TABS = ['Navigate', 'Trains', 'Facilities'];
 
 export default function App() {
   const [tab, setTab] = useState('Navigate');
+  const [stationId, setStationId] = useState('NDLS');
   // Shared by all tabs, so switching tabs does not lose your choices.
   const [fromId, setFromId] = useState('entrance');
   const [chosenToId, setChosenToId] = useState(null); // destination picked by hand
   const [trackedTrainId, setTrackedTrainId] = useState(null); // train being followed
   const [stepFreeOnly, setStepFreeOnly] = useState(false);
   const trainData = useTrains();
+
+  const station = getStation(stationId); // built once per station, then remembered
 
   // If you are tracking a train, the destination is that train's CURRENT platform.
   // So when the platform changes, the route updates by itself.
@@ -25,6 +30,15 @@ export default function App() {
   function setToId(placeId) {
     setTrackedTrainId(null); // picking a place by hand stops tracking
     setChosenToId(placeId);
+  }
+
+  // A new station has different places, so start fresh.
+  function chooseStation(id) {
+    setStationId(id);
+    setFromId('entrance');
+    setChosenToId(null);
+    setTrackedTrainId(null);
+    setTab('Navigate');
   }
 
   // Facilities tab: go to a place.
@@ -48,9 +62,12 @@ export default function App() {
         </Text>
       </View>
 
+      <StationSelector station={station} onSelect={chooseStation} />
+
       <View style={styles.body}>
         {tab === 'Navigate' && (
           <NavigateScreen
+            station={station}
             fromId={fromId}
             setFromId={setFromId}
             toId={toId}
@@ -64,13 +81,19 @@ export default function App() {
         )}
         {tab === 'Trains' && (
           <TrainsScreen
+            station={station}
             trainData={trainData}
             trackedTrainId={trackedTrainId}
             onTrack={trackTrain}
           />
         )}
         {tab === 'Facilities' && (
-          <FacilitiesScreen fromId={fromId} stepFreeOnly={stepFreeOnly} onGoTo={goTo} />
+          <FacilitiesScreen
+            station={station}
+            fromId={fromId}
+            stepFreeOnly={stepFreeOnly}
+            onGoTo={goTo}
+          />
         )}
       </View>
 

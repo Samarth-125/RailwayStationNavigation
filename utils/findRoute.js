@@ -1,18 +1,22 @@
-import { places, links, placeById } from '../data/stationData';
-
 const STEP_FREE_MODES = ['walk', 'ramp', 'lift'];
 
-// Built ONCE when the app starts: for each place, the list of places next to it.
-const graph = {};
-places.forEach((p) => (graph[p.id] = []));
-links.forEach((l) => {
-  graph[l.a].push({ to: l.b, meters: l.meters, mode: l.mode });
-  graph[l.b].push({ to: l.a, meters: l.meters, mode: l.mode }); // both directions
-});
+// For each station, the "neighbours" list is built ONCE and remembered.
+const graphCache = {};
+function graphOf(station) {
+  if (graphCache[station.id]) return graphCache[station.id];
+  const graph = {};
+  station.places.forEach((p) => (graph[p.id] = []));
+  station.links.forEach((l) => {
+    graph[l.a].push({ to: l.b, meters: l.meters, mode: l.mode });
+    graph[l.b].push({ to: l.a, meters: l.meters, mode: l.mode }); // both directions
+  });
+  graphCache[station.id] = graph;
+  return graph;
+}
 
 // Turns one move into a sentence a passenger can follow.
-function describe(mode, toId, meters) {
-  const to = placeById[toId].name;
+function describe(station, mode, toId, meters) {
+  const to = station.placeById[toId].name;
   if (mode === 'stairs') return `Take the stairs to ${to} (${meters} m)`;
   if (mode === 'lift') return `Take the lift to ${to} (${meters} m)`;
   if (mode === 'ramp') return `Take the ramp to ${to} (${meters} m)`;
@@ -21,19 +25,19 @@ function describe(mode, toId, meters) {
 
 // Dijkstra's algorithm: the shortest distance from one place to EVERY other place.
 // stepFreeOnly = true means: skip stairs and escalators.
-function shortestPaths(fromId, stepFreeOnly) {
+function shortestPaths(station, fromId, stepFreeOnly) {
+  const graph = graphOf(station);
   const dist = {};
   const cameFrom = {}; // remembers the hop used to reach each place
   const unvisited = new Set();
-  places.forEach((p) => {
+  station.places.forEach((p) => {
     dist[p.id] = Infinity;
     unvisited.add(p.id);
   });
   dist[fromId] = 0;
 
   while (unvisited.size > 0) {
-    // pick the closest unvisited place
-    let current = null;
+    let current = null; // the closest unvisited place
     unvisited.forEach((id) => {
       if (current === null || dist[id] < dist[current]) current = id;
     });
@@ -53,14 +57,14 @@ function shortestPaths(fromId, stepFreeOnly) {
 }
 
 // Joins hops that pass through unnamed corridor spots into ONE sentence,
-// so passengers hear "Walk to Concourse (65 m)" and not four tiny steps.
-function makeSteps(hops) {
+// so passengers hear "Walk to Concourse (55 m)" and not four tiny steps.
+function makeSteps(station, hops) {
   const steps = [];
   let i = 0;
   while (i < hops.length) {
     let { to, mode, meters } = hops[i];
     while (
-      placeById[to].category === 'corridor' &&
+      station.placeById[to].category === 'corridor' &&
       i + 1 < hops.length &&
       hops[i + 1].mode === mode
     ) {
@@ -68,7 +72,7 @@ function makeSteps(hops) {
       to = hops[i].to;
       meters += hops[i].meters;
     }
-    steps.push(describe(mode, to, meters));
+    steps.push(describe(station, mode, to, meters));
     i += 1;
   }
   return steps;
@@ -76,12 +80,11 @@ function makeSteps(hops) {
 
 // Route from one place to another.
 // Returns { totalMeters, steps: [text...], path: [placeId...] } or null if no route.
-export function findRoute(fromId, toId, stepFreeOnly) {
+export function findRoute(station, fromId, toId, stepFreeOnly) {
   if (!fromId || !toId) return null;
-  const { dist, cameFrom } = shortestPaths(fromId, stepFreeOnly);
+  const { dist, cameFrom } = shortestPaths(station, fromId, stepFreeOnly);
   if (dist[toId] === Infinity) return null;
 
-  // Walk backwards from the destination, collecting each hop.
   const path = [toId];
   const hops = [];
   let id = toId;
@@ -91,15 +94,15 @@ export function findRoute(fromId, toId, stepFreeOnly) {
     id = hop.from;
     path.unshift(id);
   }
-  return { totalMeters: dist[toId], steps: makeSteps(hops), path };
+  return { totalMeters: dist[toId], steps: makeSteps(station, hops), path };
 }
 
 // Closest place of one category (e.g. 'restroom') from where you are.
 // Returns { id, meters } or null if none can be reached.
-export function findNearest(fromId, category, stepFreeOnly) {
-  const { dist } = shortestPaths(fromId, stepFreeOnly);
+export function findNearest(station, fromId, category, stepFreeOnly) {
+  const { dist } = shortestPaths(station, fromId, stepFreeOnly);
   let best = null;
-  places.forEach((p) => {
+  station.places.forEach((p) => {
     if (p.category !== category || dist[p.id] === Infinity) return;
     if (best === null || dist[p.id] < best.meters) best = { id: p.id, meters: dist[p.id] };
   });

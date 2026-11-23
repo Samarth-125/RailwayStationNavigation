@@ -1,10 +1,10 @@
 import { View, Text, Pressable, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
-import { placeById } from '../data/stationData';
 import { toClock } from '../utils/trainStatus';
 
 // Shows each sample train: which platform, when it comes, delays, platform changes.
 // The data comes from App.js (hooks/useTrains.js).
-export default function TrainsScreen({ trainData, trackedTrainId, onTrack }) {
+export default function TrainsScreen({ station, trainData, trackedTrainId, onTrack }) {
+  const { placeById } = station;
   const { trains, nowMin, note, loading, error, reload, nextUpdate, resetDemo, isLastStep } = trainData;
 
   return (

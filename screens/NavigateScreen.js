@@ -1,13 +1,14 @@
 import { useMemo } from 'react';
 import { ScrollView, View, Text, Pressable, Switch, StyleSheet } from 'react-native';
 import * as Speech from 'expo-speech';
-import { STATION_NAME, placeById } from '../data/stationData';
+import { DATA_SOURCE_NOTE } from '../data/stationList';
 import { findRoute, findNearest } from '../utils/findRoute';
 import { activeTrainsAt } from '../utils/trainStatus';
 import PlaceSelector from '../components/PlaceSelector';
 import RouteMap from '../components/RouteMap';
 
 export default function NavigateScreen({
+  station,
   fromId,
   setFromId,
   toId,
@@ -20,22 +21,23 @@ export default function NavigateScreen({
 }) {
   // useMemo = only recalculate the route when one of these three values changes.
   const route = useMemo(
-    () => (toId && fromId !== toId ? findRoute(fromId, toId, stepFreeOnly) : null),
-    [fromId, toId, stepFreeOnly]
+    () => (toId && fromId !== toId ? findRoute(station, fromId, toId, stepFreeOnly) : null),
+    [station, fromId, toId, stepFreeOnly]
   );
 
   // Trains still to come at the platform you are heading to (if it is a platform).
+  const { placeById } = station;
   const trainsHere = toId ? activeTrainsAt(trains, toId) : [];
 
   // Emergency buttons: set the destination to the nearest police booth / medical room.
   function goToNearest(category) {
-    const nearest = findNearest(fromId, category, stepFreeOnly);
+    const nearest = findNearest(station, fromId, category, stepFreeOnly);
     if (nearest) setToId(nearest.id);
   }
 
   function speak() {
-    // A route can become null when the selected start or destination changes.
-    if (!route || route.steps.length === 0) return;
+    // The route can disappear if a selection changes before this handler runs.
+    if (!route || !Array.isArray(route.steps) || route.steps.length === 0) return;
     Speech.stop(); // stop anything already being read
     Speech.speak(route.steps.join('. '), { language: 'en-IN' });
   }
@@ -43,7 +45,13 @@ export default function NavigateScreen({
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.title}>Station Navigator</Text>
-      <Text style={styles.subtitle}>{STATION_NAME}</Text>
+      <Text style={styles.subtitle}>
+        {station.name} ({station.id}), {station.city} - {station.platforms} platforms
+      </Text>
+      <Text style={styles.sourceNote}>
+        {DATA_SOURCE_NOTE}
+        {station.note ? ` ${station.note}` : ''}
+      </Text>
 
       {trackedTrain && (
         <View style={styles.tracking}>
@@ -66,8 +74,8 @@ export default function NavigateScreen({
         </View>
       )}
 
-      <PlaceSelector title="From" selectedId={fromId} onSelect={setFromId} />
-      <PlaceSelector title="To" selectedId={toId} onSelect={setToId} />
+      <PlaceSelector title="From" selectedId={fromId} onSelect={setFromId} choices={station.choosable} placeById={placeById} />
+      <PlaceSelector title="To" selectedId={toId} onSelect={setToId} choices={station.choosable} placeById={placeById} />
 
       <View style={styles.switchRow}>
         <Text style={styles.switchLabel}>Step-free route only (no stairs)</Text>
@@ -104,7 +112,7 @@ export default function NavigateScreen({
         {toId && fromId !== toId && !route && (
           <Text style={styles.hint}>No {stepFreeOnly ? 'step-free ' : ''}route found.</Text>
         )}
-        {route && (
+        {route && Array.isArray(route.steps) && route.steps.length > 0 && (
           <View>
             <Text style={styles.total}>About {route.totalMeters} m (sample distances)</Text>
             {route.steps.map((step, index) => (
@@ -140,7 +148,7 @@ export default function NavigateScreen({
       )}
 
       <Text style={[styles.heading, styles.mapHeading]}>Station map</Text>
-      <RouteMap path={route ? route.path : null} fromId={fromId} toId={toId} trains={trains} />
+      <RouteMap station={station} path={route ? route.path : null} fromId={fromId} toId={toId} trains={trains} />
       <Text style={styles.legend}>
         <Text style={{ color: '#15803d', fontWeight: 'bold' }}>Green = start</Text>
         {'   '}
@@ -148,7 +156,9 @@ export default function NavigateScreen({
         {'   '}
         <Text style={{ color: '#1d4ed8', fontWeight: 'bold' }}>Blue line = route</Text>
       </Text>
-      <Text style={styles.legend}>Not to scale. Sample station and sample trains only.</Text>
+      <Text style={styles.legend}>
+        Schematic drawing, not to scale. This is NOT the real layout of {station.name}. Sample trains only.
+      </Text>
     </ScrollView>
   );
 }
@@ -156,7 +166,8 @@ export default function NavigateScreen({
 const styles = StyleSheet.create({
   content: { padding: 16 },
   title: { fontSize: 26, fontWeight: 'bold' },
-  subtitle: { fontSize: 14, color: '#555555', marginBottom: 12 },
+  subtitle: { fontSize: 14, color: '#555555' },
+  sourceNote: { fontSize: 12, color: '#6b7280', marginBottom: 12 },
   heading: { fontSize: 18, fontWeight: '600', marginBottom: 8 },
   mapHeading: { marginTop: 16 },
   switchRow: {

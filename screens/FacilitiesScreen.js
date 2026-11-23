@@ -1,23 +1,25 @@
 import { useMemo } from 'react';
 import { ScrollView, View, Text, Pressable, StyleSheet } from 'react-native';
-import { CATEGORIES, placeById } from '../data/stationData';
+import { CATEGORIES } from '../data/buildStation';
 import { findNearest } from '../utils/findRoute';
 
-export default function FacilitiesScreen({ fromId, stepFreeOnly, onGoTo }) {
+export default function FacilitiesScreen({ station, fromId, stepFreeOnly, onGoTo }) {
+  const { placeById } = station;
   // Find the nearest place of every category. Only redone when the start point
   // or the step-free setting changes.
   const items = useMemo(
     () =>
       CATEGORIES.map((cat) => ({
         cat,
-        nearest: findNearest(fromId, cat.key, stepFreeOnly),
+        nearest: findNearest(station, fromId, cat.key, stepFreeOnly),
       })),
-    [fromId, stepFreeOnly]
+    [station, fromId, stepFreeOnly]
   );
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.title}>Nearest facilities</Text>
+      <Text style={styles.note}>{station.name} (sample positions)</Text>
       <Text style={styles.note}>
         From: {placeById[fromId].name}. Step-free: {stepFreeOnly ? 'On' : 'Off'}. Change both
         on the Navigate tab.

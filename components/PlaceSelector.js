@@ -1,11 +1,10 @@
 import { useState, memo } from 'react';
 import { Modal, View, Text, Pressable, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { choosablePlaces, placeById } from '../data/stationData';
 
 // A compact field ("From: Main Entrance"). Tapping it opens a full-screen list.
 // This keeps the main screen short, so directions and the map stay visible.
-function PlaceSelector({ title, selectedId, onSelect }) {
+function PlaceSelector({ title, selectedId, onSelect, choices, placeById }) {
   const [open, setOpen] = useState(false);
   const selectedName = selectedId ? placeById[selectedId].name : 'Choose a place';
 
@@ -35,7 +34,7 @@ function PlaceSelector({ title, selectedId, onSelect }) {
             </Pressable>
           </View>
           <FlatList
-            data={choosablePlaces}
+            data={choices}
             keyExtractor={(p) => p.id}
             renderItem={({ item }) => {
               const selected = item.id === selectedId;
