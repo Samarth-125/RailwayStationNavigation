@@ -1,25 +1,91 @@
-// SAMPLE DATA ONLY - made-up trains, routes and times.
-// These are NOT real trains, timings or platforms.
+import { STATION_LIST } from './stationList';
+import { toClock, toMinutes } from '../utils/trainStatus';
 
-// Trains as first planned. Times are "HH:MM".
-export const baseTrains = [
-  { id: 't1', number: 'DEMO-101', name: 'Sample Express', nameHi: 'सैंपल एक्सप्रेस', route: 'Sample City A to Sample City B', routeHi: 'नमूना शहर A से नमूना शहर B', scheduled: '10:15', platformId: 'p1' },
-  { id: 't2', number: 'DEMO-202', name: 'Demo Intercity', nameHi: 'डेमो इंटरसिटी', route: 'Sample City C to Sample City A', routeHi: 'नमूना शहर C से नमूना शहर A', scheduled: '10:40', platformId: 'p2' },
-  { id: 't3', number: 'DEMO-303', name: 'Test Passenger', nameHi: 'टेस्ट पैसेंजर', route: 'Sample City B to Sample City D', routeHi: 'नमूना शहर B से नमूना शहर D', scheduled: '11:05', platformId: 'p3' },
-  { id: 't5', number: 'DEMO-505', name: 'Sample Superfast', nameHi: 'सैंपल सुपरफास्ट', route: 'Sample City A to Sample City D', routeHi: 'नमूना शहर A से नमूना शहर D', scheduled: '10:30', platformId: 'p4' },
-  { id: 't6', number: 'DEMO-606', name: 'Demo Local', nameHi: 'डेमो लोकल', route: 'Sample City E to Sample City B', routeHi: 'नमूना शहर E से नमूना शहर B', scheduled: '11:15', platformId: 'p5' },
-  { id: 't4', number: 'DEMO-404', name: 'Example Mail', nameHi: 'एग्ज़ाम्पल मेल', route: 'Sample City D to Sample City C', routeHi: 'नमूना शहर D से नमूना शहर C', scheduled: '11:30', platformId: 'p2' },
-];
+// SAMPLE DATA ONLY - made-up trains, routes, times and platforms.
+// These are NOT real trains and NOT a real timetable.
+//
+// For every station we make up ONE train to each of the other stations, so the
+// "From -> To" form always has an answer. Everything is worked out from the station
+// codes, so it is the same every time you run the app (no random numbers):
+//  - the PLATFORM depends on the pair (From, To), so different destinations use
+//    different platforms, and the platform is always one that exists at that station;
+//  - some trains get delayed and some change platform while the demo clock runs.
 
-// A pretend story, so you can show delays and platform changes in the demo.
-// The demo clock runs by itself. When it reaches a step's time ('now'), that step's
-// changes happen. Changes add up: the 10:20 step also includes the earlier ones.
-export const demoSteps = [
-  { now: '10:00', note: 'All trains on time.', noteHi: 'सभी ट्रेनें समय पर हैं।', changes: {} },
-  { now: '10:05', note: 'Sample Express is a little late.', noteHi: 'सैंपल एक्सप्रेस थोड़ी देरी से है।', changes: { t1: { delayMin: 8 } } },
-  { now: '10:10', note: 'Demo Intercity is delayed.', noteHi: 'डेमो इंटरसिटी देरी से है।', changes: { t2: { delayMin: 12 } } },
-  { now: '10:20', note: 'Test Passenger moves to Platform 1.', noteHi: 'टेस्ट पैसेंजर प्लेटफॉर्म 1 पर आएगी।', changes: { t3: { platformId: 'p1' } } },
-  { now: '10:25', note: 'Sample Express is at the platform. Demo Intercity delay grows.', noteHi: 'सैंपल एक्सप्रेस प्लेटफॉर्म पर है। डेमो इंटरसिटी की देरी बढ़ गई।', changes: { t2: { delayMin: 25 } } },
-  { now: '11:00', note: 'Example Mail is delayed too.', noteHi: 'एग्ज़ाम्पल मेल भी देरी से है।', changes: { t4: { delayMin: 10 } } },
-  { now: '11:10', note: 'Demo Local is delayed.', noteHi: 'डेमो लोकल देरी से है।', changes: { t6: { delayMin: 15 } } },
-];
+const FIRST_TRAIN = 10 * 60 + 10; // first train is due at 10:10
+const GAP = 4; // then one more train every 4 minutes
+const BEFORE_DELAY = 12; // a delay is announced this many minutes before the train is due
+const BEFORE_CHANGE = 8; // a platform change is announced this many minutes before
+
+// Turns text into the same number every time.
+function hash(text) {
+  let h = 5381;
+  for (let i = 0; i < text.length; i++) h = (h * 33 + text.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+const cache = {};
+
+// Returns { trains, steps } for one station (built once, then remembered).
+//   trains: the planned trains.
+//   steps: things that happen at a clock time (a delay, a platform change).
+export function buildSampleStory(station) {
+  if (cache[station.id]) return cache[station.id];
+
+  // The other stations, in an order that looks mixed-up but never changes.
+  const others = STATION_LIST.filter((s) => s.id !== station.id).sort(
+    (a, b) => hash(station.id + a.id) - hash(station.id + b.id)
+  );
+
+  const trains = [];
+  const steps = [
+    {
+      now: '10:00',
+      note: 'Sample trains only. This is not a real timetable.',
+      noteHi: 'केवल नमूना ट्रेनें। यह असली समय-सारणी नहीं है।',
+      changes: {},
+    },
+  ];
+
+  others.forEach((dest, i) => {
+    const h = hash(`${station.id}>${dest.id}`);
+    const id = `${station.id}-${dest.id}`;
+    const due = FIRST_TRAIN + i * GAP;
+    const platformNo = 1 + (h % station.platforms);
+    const name = `Sample ${dest.name} Express`;
+    const nameHi = `सैंपल ${dest.nameHi} एक्सप्रेस`;
+
+    trains.push({
+      id,
+      number: `DEMO-${100 + (h % 900)}`,
+      name,
+      nameHi,
+      route: `${station.name} to ${dest.name}`,
+      routeHi: `${station.nameHi} से ${dest.nameHi}`,
+      destId: dest.id, // lets the From/To form pick the right trains
+      scheduled: toClock(due),
+      platformId: `p${platformNo}`,
+    });
+
+    if (i % 3 === 0) {
+      steps.push({
+        now: toClock(Math.max(601, due - BEFORE_DELAY)),
+        note: `${name} is delayed.`,
+        noteHi: `${nameHi} देरी से है।`,
+        changes: { [id]: { delayMin: 5 + (h % 4) * 5 } }, // 5, 10, 15 or 20 minutes
+      });
+    }
+    if (i % 7 === 2) {
+      const newNo = 1 + (platformNo % station.platforms); // the next platform
+      steps.push({
+        now: toClock(Math.max(601, due - BEFORE_CHANGE)),
+        note: `${name} moves to Platform ${newNo}.`,
+        noteHi: `${nameHi} प्लेटफॉर्म ${newNo} पर आएगी।`,
+        changes: { [id]: { platformId: `p${newNo}` } },
+      });
+    }
+  });
+
+  steps.sort((a, b) => toMinutes(a.now) - toMinutes(b.now));
+  cache[station.id] = { trains, steps };
+  return cache[station.id];
+}

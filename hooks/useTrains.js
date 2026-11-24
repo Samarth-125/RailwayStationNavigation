@@ -64,7 +64,7 @@ export default function useTrains(station, useLive) {
     return () => clearInterval(id);
   }, [running, atEnd, speed, live]);
 
-  const result = useMemo(() => live || getTrainsAt(clock), [live, clock]);
+  const result = useMemo(() => live || getTrainsAt(station, clock), [live, station, clock]);
   const trains = useMemo(() => result.trains.map((t) => enrich(t, result.nowMin)), [result]);
 
   return {

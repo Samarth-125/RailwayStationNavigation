@@ -1,21 +1,22 @@
-import { baseTrains, demoSteps } from '../data/sampleTrains';
-import { toMinutes } from '../utils/trainStatus';
+import { buildSampleStory } from '../data/sampleTrains';
 
 // SAMPLE (made-up) trains for the demo.
-// The demo clock starts at the first step's time and runs by itself (hooks/useTrains.js).
-// Given a clock time, this works out the trains as they would look at that moment:
-// every step whose time has come has already happened.
+// The demo clock starts at 10:00 and runs by itself (hooks/useTrains.js).
+// Given a station and a clock time, this works out the trains as they would look at
+// that moment: every step whose time has come has already happened.
 // Live data (if you add a key) is in services/liveTrainService.js.
 //
 // Returns: { source: 'SAMPLE', nowMin, note, noteHi, trains: [ { id, number, name, route,
-//            scheduled, delayMin?, platformId, previousPlatformId? } ] }
-export function getTrainsAt(nowMin) {
+//            destId, scheduled, delayMin?, platformId, previousPlatformId? } ] }
+export function getTrainsAt(station, nowMin) {
+  const story = buildSampleStory(station);
   const trains = {};
-  baseTrains.forEach((t) => (trains[t.id] = { ...t }));
+  story.trains.forEach((t) => (trains[t.id] = { ...t }));
 
   let current = null; // the latest step that has happened
-  demoSteps.forEach((step) => {
-    if (toMinutes(step.now) > nowMin) return;
+  story.steps.forEach((step) => {
+    const [h, m] = step.now.split(':').map(Number);
+    if (h * 60 + m > nowMin) return;
     current = step;
     Object.entries(step.changes).forEach(([id, change]) => {
       const train = trains[id];
@@ -35,5 +36,5 @@ export function getTrainsAt(nowMin) {
   };
 }
 
-export const DEMO_START = toMinutes(demoSteps[0].now); // 10:00
-export const DEMO_END = toMinutes('11:50'); // the demo stops here (everything has left)
+export const DEMO_START = 10 * 60; // 10:00
+export const DEMO_END = 12 * 60 + 5; // 12:05 - by then every train has left

@@ -5,15 +5,17 @@ import {
 import { STATION_LIST } from '../data/stationList';
 import { useI18n, field } from '../utils/i18n';
 
-// A bar at the top ("Station: New Delhi (NDLS)"). Tapping opens a searchable list.
-function StationSelector({ station, onSelect }) {
+// Tapping opens a searchable list of stations.
+// variant 'bar'   = the dark bar at the top of the app (shows the current station)
+// variant 'field' = a form field with a label (station may be empty), used for From / To
+function StationSelector({ station, onSelect, variant = 'bar', label, excludeId }) {
   const { lang, t } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
 
   // Search by name, code, city, or an old/other name (like "kashmere gate").
   const q = query.trim().toLowerCase();
-  const shown = STATION_LIST.filter((s) =>
+  const shown = STATION_LIST.filter((s) => s.id !== excludeId).filter((s) =>
     `${s.name} ${s.nameHi || ''} ${s.id} ${s.city} ${s.cityHi || ''} ${s.search || ''}`.toLowerCase().includes(q)
   );
 
@@ -25,21 +27,35 @@ function StationSelector({ station, onSelect }) {
 
   return (
     <View>
-      <Pressable
-        style={styles.bar}
-        onPress={() => setOpen(true)}
-        accessibilityRole="button"
-        accessibilityLabel={`${t('station')}: ${field(station, 'name', lang)}. ${t('tapChangeStation')}`}
-      >
-        <View style={styles.barLeft}>
-          <Text style={styles.barLabel}>{t('station').toUpperCase()}</Text>
-          <Text style={styles.barName} numberOfLines={1}>{field(station, 'name', lang)}</Text>
-          <Text style={styles.barInfo} numberOfLines={1}>
-            {station.id} · {field(station, 'city', lang)} · {t('platformsCount', { n: station.platforms })}
+      {variant === 'bar' ? (
+        <Pressable
+          style={styles.bar}
+          onPress={() => setOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`${t('station')}: ${field(station, 'name', lang)}. ${t('tapChangeStation')}`}
+        >
+          <View style={styles.barLeft}>
+            <Text style={styles.barLabel}>{t('station').toUpperCase()}</Text>
+            <Text style={styles.barName} numberOfLines={1}>{field(station, 'name', lang)}</Text>
+            <Text style={styles.barInfo} numberOfLines={1}>
+              {station.id} · {field(station, 'city', lang)} · {t('platformsCount', { n: station.platforms })}
+            </Text>
+          </View>
+          <Text style={styles.barArrow}>▾</Text>
+        </Pressable>
+      ) : (
+        <Pressable
+          style={styles.field}
+          onPress={() => setOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`${label}: ${station ? field(station, 'name', lang) : t('formChoose')}. ${t('tapChangeStation')}`}
+        >
+          <Text style={styles.fieldLabel}>{label}</Text>
+          <Text style={[styles.fieldName, !station && styles.fieldEmpty]} numberOfLines={1}>
+            {station ? field(station, 'name', lang) : t('formChoose')}  ▾
           </Text>
-        </View>
-        <Text style={styles.barArrow}>▾</Text>
-      </Pressable>
+        </Pressable>
+      )}
 
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
         <SafeAreaView style={styles.modal}>
@@ -63,7 +79,7 @@ function StationSelector({ station, onSelect }) {
             keyboardShouldPersistTaps="handled"
             ListEmptyComponent={<Text style={styles.empty}>{t('noStation')}</Text>}
             renderItem={({ item }) => {
-              const selected = item.id === station.id;
+              const selected = Boolean(station) && item.id === station.id;
               return (
                 <Pressable
                   style={[styles.row, selected && styles.rowSelected]}
@@ -96,6 +112,10 @@ const styles = StyleSheet.create({
   barName: { color: '#ffffff', fontSize: 22, fontWeight: 'bold' },
   barInfo: { color: '#cbd5e1', fontSize: 13, marginTop: 1 },
   barArrow: { color: '#ffffff', fontSize: 20, marginLeft: 8 },
+  field: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#bfdbfe', borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14, marginBottom: 8 },
+  fieldLabel: { fontSize: 13, color: '#555555' },
+  fieldName: { fontSize: 19, fontWeight: 'bold', color: '#1d4ed8' },
+  fieldEmpty: { color: '#6b7280', fontWeight: '600' },
   modal: { flex: 1, backgroundColor: '#ffffff' },
   header: {
     flexDirection: 'row',

@@ -1,24 +1,89 @@
 import { View, Text, Pressable, FlatList, ActivityIndicator, Switch, StyleSheet } from 'react-native';
 import { isLiveConfigured } from '../services/liveTrainService';
+import { STATION_LIST } from '../data/stationList';
 import { toClock } from '../utils/trainStatus';
 import { isClosedPlace } from '../utils/findRoute';
+import StationSelector from '../components/StationSelector';
 import { useI18n, nameText, field, delayText, whenText } from '../utils/i18n';
 
-// Shows each sample train: which platform, when it comes, delays, platform changes.
+// The train board, with a "From station -> To station" form on top.
+// Pick the stations and the board shows the train to that station and the platform it uses.
 // The data comes from App.js (hooks/useTrains.js).
-export default function TrainsScreen({ station, trainData, trackedTrainId, onTrack, closedIds, useLive, setUseLive }) {
+export default function TrainsScreen({
+  station,
+  trainData,
+  trackedTrainId,
+  onTrack,
+  closedIds,
+  useLive,
+  setUseLive,
+  destStationId,
+  onChangeFrom,
+  onChangeTo,
+  onSwap,
+}) {
   const { lang, t } = useI18n();
   const { placeById } = station;
-  const { source, trains, nowMin, note, noteHi, loading, error, liveError, updatedAt, reload, running, atEnd, speed, toggleRunning, cycleSpeed, skip, resetDemo } = trainData;
+  const {
+    source, trains, nowMin, note, noteHi, loading, error, liveError, updatedAt, reload,
+    running, atEnd, speed, toggleRunning, cycleSpeed, skip, resetDemo,
+  } = trainData;
   const configured = isLiveConfigured();
 
-  return (
-    <View style={styles.screen}>
+  // The form only filters SAMPLE trains (live trains do not say which station they go to
+  // in a form we can match).
+  const destStation = destStationId ? STATION_LIST.find((s) => s.id === destStationId) : null;
+  const filtering = Boolean(destStation) && source === 'SAMPLE';
+  const shownTrains = filtering ? trains.filter((x) => x.destId === destStationId) : trains;
+  const nextTrain = filtering ? shownTrains.find((x) => x.state !== 'departed' && x.state !== 'cancelled') : null;
+  const platformName = (id) => (id ? nameText(placeById[id].name, lang) : t('platformUnknown'));
+
+  const header = (
+    <View>
       <View style={styles.headerRow}>
         <Text style={styles.title}>{source === 'LIVE' ? t('trainBoardLive') : t('trainBoard')}</Text>
         {useLive && (
           <Pressable onPress={reload} accessibilityRole="button" accessibilityLabel={t('refreshLabel')}>
             <Text style={styles.refresh}>{t('refresh')}</Text>
+          </Pressable>
+        )}
+      </View>
+
+      {/* The form: which station to which station */}
+      <View style={styles.form}>
+        <Text style={styles.formTitle}>{t('formTitle')}</Text>
+        <StationSelector variant="field" label={t('formFrom')} station={station} onSelect={onChangeFrom} excludeId={destStationId} />
+        <Pressable
+          style={styles.swap}
+          onPress={onSwap}
+          disabled={!destStation}
+          accessibilityRole="button"
+          accessibilityLabel={t('formSwapLabel')}
+        >
+          <Text style={[styles.swapText, !destStation && styles.swapOff]}>⇅ {t('formSwap')}</Text>
+        </Pressable>
+        <StationSelector variant="field" label={t('formTo')} station={destStation} onSelect={onChangeTo} excludeId={station.id} />
+
+        {!destStation && <Text style={styles.formHint}>{t('formNoDest')}</Text>}
+        {destStation && source === 'LIVE' && <Text style={styles.formHint}>{t('formLiveNote')}</Text>}
+        {filtering && nextTrain && (
+          <View style={styles.answer}>
+            <Text style={styles.answerText}>
+              {t('formAnswer', {
+                to: field(destStation, 'name', lang),
+                p: platformName(nextTrain.platformId),
+                e: nextTrain.expected,
+              })}
+            </Text>
+          </View>
+        )}
+        {filtering && !nextTrain && (
+          <Text style={styles.formHint}>{t('formNone', { to: field(destStation, 'name', lang) })}</Text>
+        )}
+        {filtering && <Text style={styles.formSample}>{t('formSample')}</Text>}
+        {destStation && (
+          <Pressable onPress={() => onChangeTo(null)} accessibilityRole="button">
+            <Text style={styles.showAll}>{t('formAll')}</Text>
           </Pressable>
         )}
       </View>
@@ -82,64 +147,80 @@ export default function TrainsScreen({ station, trainData, trackedTrainId, onTra
 
       {loading && <ActivityIndicator size="large" style={styles.loader} />}
       {error && <Text style={styles.error}>{t('loadError')}</Text>}
-
-      {!loading && !error && (
-        <FlatList
-          data={trains}
-          keyExtractor={(t) => t.id}
-          renderItem={({ item }) => {
-            const platform = item.platformId ? nameText(placeById[item.platformId].name, lang) : t('platformUnknown');
-            const closed = isClosedPlace(item.platformId, closedIds);
-            const finished = item.state === 'departed' || item.state === 'cancelled';
-            const tracking = item.id === trackedTrainId;
-            return (
-              <View style={[styles.card, finished && styles.cardFinished]}>
-                <Text style={styles.trainName}>
-                  {field(item, 'name', lang)} ({item.number})
-                </Text>
-                <Text style={styles.route}>{field(item, 'route', lang)}</Text>
-
-                {item.platformChanged && item.previousPlatformId && (
-                  <Text style={styles.changed}>
-                    {t('platformChangedWas', { p: nameText(placeById[item.previousPlatformId].name, lang) })}
-                  </Text>
-                )}
-                {closed && !finished && <Text style={styles.closed}>{t('closedBadge')}</Text>}
-                <Text style={styles.platform}>{platform}</Text>
-
-                <Text style={styles.line}>
-                  {t('scheduledExpected', { s: item.scheduled, e: item.expected })}
-                </Text>
-                <Text style={[styles.line, item.delayMin > 0 && styles.late]}>
-                  {delayText(item, lang)}. {whenText(item, lang)}.
-                </Text>
-
-                {!finished && item.platformId && (
-                  <Pressable
-                    style={[styles.button, tracking && styles.buttonOn]}
-                    onPress={() => onTrack(item.id)}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('trackLabel', { name: field(item, 'name', lang), p: platform })}
-                  >
-                    <Text style={styles.buttonText}>
-                      {tracking ? t('trackingShow') : t('trackGo', { p: platform })}
-                    </Text>
-                  </Pressable>
-                )}
-              </View>
-            );
-          }}
-        />
-      )}
     </View>
+  );
+
+  // One FlatList for the whole screen, so the form, the clock and the trains scroll together.
+  return (
+    <FlatList
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      ListHeaderComponent={header}
+      data={loading || error ? [] : shownTrains}
+      keyExtractor={(item) => item.id}
+      keyboardShouldPersistTaps="handled"
+      renderItem={({ item }) => {
+        const platform = platformName(item.platformId);
+        const closed = item.platformId ? isClosedPlace(item.platformId, closedIds) : false;
+        const finished = item.state === 'departed' || item.state === 'cancelled';
+        const tracking = item.id === trackedTrainId;
+        return (
+          <View style={[styles.card, finished && styles.cardFinished]}>
+            <Text style={styles.trainName}>
+              {field(item, 'name', lang)} ({item.number})
+            </Text>
+            <Text style={styles.route}>{field(item, 'route', lang)}</Text>
+
+            {item.platformChanged && item.previousPlatformId && (
+              <Text style={styles.changed}>
+                {t('platformChangedWas', { p: nameText(placeById[item.previousPlatformId].name, lang) })}
+              </Text>
+            )}
+            {closed && !finished && <Text style={styles.closed}>{t('closedBadge')}</Text>}
+            <Text style={styles.platform}>{platform}</Text>
+
+            <Text style={styles.line}>
+              {t('scheduledExpected', { s: item.scheduled, e: item.expected })}
+            </Text>
+            <Text style={[styles.line, item.delayMin > 0 && styles.late]}>
+              {delayText(item, lang)}. {whenText(item, lang)}.
+            </Text>
+
+            {!finished && item.platformId && (
+              <Pressable
+                style={[styles.button, tracking && styles.buttonOn]}
+                onPress={() => onTrack(item.id)}
+                accessibilityRole="button"
+                accessibilityLabel={t('trackLabel', { name: field(item, 'name', lang), p: platform })}
+              >
+                <Text style={styles.buttonText}>
+                  {tracking ? t('trackingShow') : t('trackGo', { p: platform })}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        );
+      }}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, padding: 16 },
+  screen: { flex: 1 },
+  content: { padding: 16 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { fontSize: 22, fontWeight: 'bold' },
   refresh: { color: '#1d4ed8', fontSize: 16, fontWeight: '600', padding: 8 },
+  form: { backgroundColor: '#eff6ff', borderRadius: 14, padding: 14, marginVertical: 12, borderWidth: 1, borderColor: '#bfdbfe' },
+  formTitle: { fontSize: 18, fontWeight: 'bold', color: '#0f172a', marginBottom: 8 },
+  swap: { alignSelf: 'center', paddingVertical: 2, paddingHorizontal: 12 },
+  swapText: { color: '#1d4ed8', fontWeight: 'bold', fontSize: 15 },
+  swapOff: { color: '#9ca3af' },
+  formHint: { fontSize: 14, color: '#555555', marginTop: 4 },
+  formSample: { fontSize: 13, color: '#b45309', fontWeight: '600', marginTop: 6 },
+  answer: { backgroundColor: '#1d4ed8', borderRadius: 10, padding: 12, marginTop: 4 },
+  answerText: { color: '#ffffff', fontSize: 18, fontWeight: 'bold' },
+  showAll: { color: '#1d4ed8', fontWeight: 'bold', fontSize: 15, marginTop: 8 },
   sourceBox: { backgroundColor: '#ffffff', borderRadius: 14, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#e2e8f0' },
   sourceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sourceLabel: { fontSize: 16, fontWeight: '600', flex: 1, marginRight: 12 },

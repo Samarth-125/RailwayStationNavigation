@@ -30,7 +30,7 @@ export default function NavigateScreen({
     () => (toId && fromId !== toId ? findRoute(station, fromId, toId, stepFreeOnly, closedIds) : null),
     [station, fromId, toId, stepFreeOnly, closedIds]
   );
-  // A route can be null when no destination is selected or when no path exists.
+  // A route is null until a destination is chosen, or if no path exists.
   const routeSteps = Array.isArray(route?.steps) ? route.steps : [];
   const destClosed = Boolean(toId) && isClosedPlace(toId, closedIds);
   const pname = (id) => (id ? nameText(placeById[id].name, lang) : t('platformUnknown'));

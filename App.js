@@ -24,6 +24,7 @@ export default function App() {
   const [stepFreeOnly, setStepFreeOnly] = useState(false);
   const [lang, setLang] = useState('en'); // 'en' or 'hi'
   const [closedIds, setClosedIds] = useState([]); // platforms marked closed (demo switch)
+  const [destStationId, setDestStationId] = useState(null); // the "To" station in the From/To form
   const [useLive, setUseLive] = useState(false); // false = SAMPLE trains, true = live (needs a key in config.js)
 
   const station = getStation(stationId); // built once per station, then remembered
@@ -40,13 +41,22 @@ export default function App() {
   }
 
   // A new station has different places, so start fresh.
-  function chooseStation(id) {
+  function chooseStation(id, keepTab = false) {
     setStationId(id);
+    if (id === destStationId) setDestStationId(null);
     setFromId('entrance');
     setChosenToId(null);
     setTrackedTrainId(null);
     setClosedIds([]);
-    setTab('Navigate');
+    if (!keepTab) setTab('Navigate');
+  }
+
+  // The "swap" button in the form: From becomes To and To becomes From.
+  function swapStations() {
+    if (!destStationId) return;
+    const oldFrom = stationId;
+    chooseStation(destStationId, true);
+    setDestStationId(oldFrom);
   }
 
   function toggleClosed(platformId) {
@@ -118,6 +128,10 @@ export default function App() {
             closedIds={closedIds}
             useLive={useLive}
             setUseLive={setUseLive}
+            destStationId={destStationId}
+            onChangeFrom={(id) => chooseStation(id, true)}
+            onChangeTo={setDestStationId}
+            onSwap={swapStations}
           />
         )}
         {tab === 'Facilities' && (
