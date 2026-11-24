@@ -30,6 +30,8 @@ export default function NavigateScreen({
     () => (toId && fromId !== toId ? findRoute(station, fromId, toId, stepFreeOnly, closedIds) : null),
     [station, fromId, toId, stepFreeOnly, closedIds]
   );
+  // A route can be null when no destination is selected or when no path exists.
+  const routeSteps = Array.isArray(route?.steps) ? route.steps : [];
   const destClosed = Boolean(toId) && isClosedPlace(toId, closedIds);
   const pname = (id) => (id ? nameText(placeById[id].name, lang) : t('platformUnknown'));
 
@@ -44,8 +46,9 @@ export default function NavigateScreen({
   }
 
   function speak() {
+    if (routeSteps.length === 0) return;
     Speech.stop(); // stop anything already being read
-    Speech.speak(route.steps.map((s) => stepText(s, station, lang)).join('. '), {
+    Speech.speak(routeSteps.map((s) => stepText(s, station, lang)).join('. '), {
       language: lang === 'hi' ? 'hi-IN' : 'en-IN',
     });
   }
@@ -121,13 +124,13 @@ export default function NavigateScreen({
         {!toId && <Text style={styles.hint}>{t('chooseDest')}</Text>}
         {toId && fromId === toId && <Text style={styles.hint}>{t('alreadyHere')}</Text>}
         {destClosed && fromId !== toId && <Text style={styles.closedBanner}>{t('destClosed')}</Text>}
-        {toId && fromId !== toId && !route && !destClosed && (
+        {toId && fromId !== toId && routeSteps.length === 0 && !destClosed && (
           <Text style={styles.hint}>{stepFreeOnly ? t('noRouteStepFree') : t('noRoute')}</Text>
         )}
-        {route && (
+        {route && routeSteps.length > 0 && (
           <View>
             <Text style={styles.total}>{t('aboutMeters', { m: route.totalMeters })}</Text>
-            {route.steps.map((step, index) => (
+            {routeSteps.map((step, index) => (
               <Text key={index} style={styles.step}>
                 {index + 1}. {stepText(step, station, lang)}
               </Text>
