@@ -98,17 +98,17 @@ function buildThrough(n) {
   // Drawing
   const width = x(n) + 47;
   const base = [
-    { ...rect(0, 0, width, 330, '#eef2f7'), kind: 'ground' },
+    rect(0, 0, width, 330, '#eef2f7'),
     rect(0, 266, 150, 14, '#cbd5e1'),
     text(130, 276, 'ROAD', 6, '#475569', 'end'),
-    { ...rect(10, 22, 140, 244, '#f8fafc', '#94a3b8', 1.5, 4), kind: 'floor' },
+    rect(10, 22, 140, 244, '#f8fafc', '#94a3b8', 1.5, 4),
     text(80, 15, 'STATION BUILDING', 7, '#64748b'),
   ];
   const geo = [];
   for (let k = 1; k <= n; k++) {
     const px = x(k);
     const tx = px + 27;
-    base.push({ ...rect(px - 15, 25, 30, 245, '#e7e5e4'), kind: 'platform' });
+    base.push(rect(px - 15, 25, 30, 245, '#e7e5e4'));
     base.push(line(px - 13, 25, px - 13, 270, '#facc15', 1.5));
     base.push(line(px + 13, 25, px + 13, 270, '#facc15', 1.5));
     base.push(line(tx, 25, tx, 270, '#a8a29e', 10, '1.5,3'));
@@ -117,7 +117,7 @@ function buildThrough(n) {
     base.push(text(tx, 279, `Track ${k}`, 6, '#57534e'));
     geo.push({ id: `p${k}`, x: px, trackX: tx, coachY0: 54, coachN: 8, boardY: 291, boardY2: 302, top: 25, bottom: 270 });
   }
-  base.push({ ...rect(70, 33, x(n) + 33 - 70, 14, '#cbd5e1', '#64748b', 1), kind: 'deck' });
+  base.push(rect(70, 33, x(n) + 33 - 70, 14, '#cbd5e1', '#64748b', 1));
   base.push(text(180, 43, 'FOOTBRIDGE', 7, '#475569'));
   const over = [
     text(80, 291, 'Entrance', 7, '#111827', 'middle', true),
@@ -163,8 +163,8 @@ function buildTerminus(n) {
 
   // Platforms: each platform node sits just above the hall, stalls run up the platform
   const base = [
-    { ...rect(0, 0, width, 325, '#eef2f7'), kind: 'ground' },
-    { ...rect(10, 225, width - 20, 75, '#f8fafc', '#94a3b8', 1.5, 4), kind: 'floor' },
+    rect(0, 0, width, 325, '#eef2f7'),
+    rect(10, 225, width - 20, 75, '#f8fafc', '#94a3b8', 1.5, 4),
     text(width / 2, 316, 'STATION CONCOURSE - all platforms are at ground level', 7, '#64748b'),
   ];
   const geo = [];
@@ -176,13 +176,13 @@ function buildTerminus(n) {
     const kinds = k % 3 === 1 ? ['water', 'food', 'tea'] : k % 3 === 2 ? ['wc', 'snack', 'water', 'tea'] : ['food', 'water', 'wc'];
     addStalls(places, links, k, px, `p${k}`, kinds, [180, 150, 120, 90]);
 
-    base.push({ ...rect(px - 15, 35, 30, 190, '#e7e5e4'), kind: 'platform' });
+    base.push(rect(px - 15, 35, 30, 190, '#e7e5e4'));
     base.push(line(px - 13, 35, px - 13, 225, '#facc15', 1.5));
     base.push(line(px + 13, 35, px + 13, 225, '#facc15', 1.5));
     base.push(line(tx, 35, tx, 222, '#a8a29e', 10, '1.5,3'));
     base.push(line(tx - 4, 35, tx - 4, 222, '#57534e', 1.2));
     base.push(line(tx + 4, 35, tx + 4, 222, '#57534e', 1.2));
-    base.push({ ...rect(tx - 6, 219, 12, 5, '#57534e'), kind: 'buffer' }); // buffer stop
+    base.push(rect(tx - 6, 219, 12, 5, '#57534e')); // buffer stop
     base.push(text(tx, 32, `Track ${k}`, 6, '#57534e'));
     geo.push({ id: `p${k}`, x: px, trackX: tx, coachY0: 40, coachN: 7, boardY: 12, boardY2: 23, top: 35, bottom: 225 });
   }

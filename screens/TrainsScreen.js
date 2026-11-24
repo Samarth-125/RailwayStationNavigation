@@ -9,16 +9,18 @@ import { useI18n, nameText, field, delayText, whenText } from '../utils/i18n';
 export default function TrainsScreen({ station, trainData, trackedTrainId, onTrack, closedIds, useLive, setUseLive }) {
   const { lang, t } = useI18n();
   const { placeById } = station;
-  const { source, trains, nowMin, note, noteHi, loading, error, liveError, updatedAt, reload, nextUpdate, resetDemo, isLastStep } = trainData;
+  const { source, trains, nowMin, note, noteHi, loading, error, liveError, updatedAt, reload, running, atEnd, speed, toggleRunning, cycleSpeed, skip, resetDemo } = trainData;
   const configured = isLiveConfigured();
 
   return (
     <View style={styles.screen}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>{source === 'LIVE' ? t('trainBoardLive') : t('trainBoard')}</Text>
-        <Pressable onPress={reload} accessibilityRole="button" accessibilityLabel={t('refreshLabel')}>
-          <Text style={styles.refresh}>{t('refresh')}</Text>
-        </Pressable>
+        {useLive && (
+          <Pressable onPress={reload} accessibilityRole="button" accessibilityLabel={t('refreshLabel')}>
+            <Text style={styles.refresh}>{t('refresh')}</Text>
+          </Pressable>
+        )}
       </View>
 
       {/* Choose where the trains come from */}
@@ -43,25 +45,39 @@ export default function TrainsScreen({ station, trainData, trackedTrainId, onTra
         )}
       </View>
 
-      {/* Demo controls: they replay a pretend story. Only for SAMPLE data. */}
+      {/* Demo clock: it runs by itself. Trains arrive, wait, get delayed and leave by this clock. */}
       {source === 'SAMPLE' && (
-      <View style={styles.demo}>
-        <Text style={styles.demoTitle}>{t('demoClock', { t: toClock(nowMin) })}</Text>
-        <Text style={styles.demoNote}>{lang === 'hi' && noteHi ? noteHi : note}</Text>
-        <View style={styles.demoButtons}>
-          <Pressable
-            style={[styles.demoButton, isLastStep && styles.demoButtonOff]}
-            onPress={nextUpdate}
-            disabled={isLastStep}
-            accessibilityRole="button"
-          >
-            <Text style={styles.demoButtonText}>{t('nextUpdate')}</Text>
-          </Pressable>
-          <Pressable style={styles.demoButtonLight} onPress={resetDemo} accessibilityRole="button">
-            <Text style={styles.demoButtonLightText}>{t('restart')}</Text>
-          </Pressable>
+        <View style={styles.demo}>
+          <Text style={styles.demoTitle}>
+            {t('demoClock', { t: toClock(nowMin) })}
+            {atEnd ? ` - ${t('demoEnd')}` : ''}
+          </Text>
+          <Text style={styles.demoNote}>{lang === 'hi' && noteHi ? noteHi : note}</Text>
+          <View style={styles.demoButtons}>
+            <Pressable
+              style={[styles.demoButton, atEnd && styles.demoButtonOff]}
+              onPress={toggleRunning}
+              disabled={atEnd}
+              accessibilityRole="button"
+            >
+              <Text style={styles.demoButtonText}>{running && !atEnd ? t('demoPause') : t('demoPlay')}</Text>
+            </Pressable>
+            <Pressable style={styles.demoButtonLight} onPress={cycleSpeed} accessibilityRole="button">
+              <Text style={styles.demoButtonLightText}>{t('demoSpeed', { s: t(`speed_${speed}`) })}</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.demoButtonLight, atEnd && styles.demoButtonOff]}
+              onPress={skip}
+              disabled={atEnd}
+              accessibilityRole="button"
+            >
+              <Text style={styles.demoButtonLightText}>{t('demoSkip')}</Text>
+            </Pressable>
+            <Pressable style={styles.demoButtonLight} onPress={resetDemo} accessibilityRole="button">
+              <Text style={styles.demoButtonLightText}>{t('restart')}</Text>
+            </Pressable>
+          </View>
         </View>
-      </View>
       )}
 
       {loading && <ActivityIndicator size="large" style={styles.loader} />}
@@ -132,11 +148,11 @@ const styles = StyleSheet.create({
   demo: { backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#f59e0b', borderRadius: 14, padding: 14, marginBottom: 14 },
   demoTitle: { fontSize: 16, fontWeight: 'bold' },
   demoNote: { fontSize: 14, color: '#555555', marginBottom: 8 },
-  demoButtons: { flexDirection: 'row' },
-  demoButton: { backgroundColor: '#b45309', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 14, marginRight: 8 },
+  demoButtons: { flexDirection: 'row', flexWrap: 'wrap' },
+  demoButton: { backgroundColor: '#b45309', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 14, marginRight: 8, marginBottom: 8 },
   demoButtonOff: { opacity: 0.4 },
   demoButtonText: { color: '#ffffff', fontWeight: 'bold' },
-  demoButtonLight: { borderWidth: 1, borderColor: '#b45309', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 14 },
+  demoButtonLight: { borderWidth: 1, borderColor: '#b45309', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 14, marginRight: 8, marginBottom: 8 },
   demoButtonLightText: { color: '#b45309', fontWeight: 'bold' },
   loader: { marginTop: 24 },
   error: { color: '#b91c1c', fontSize: 16 },

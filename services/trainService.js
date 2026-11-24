@@ -1,39 +1,39 @@
 import { baseTrains, demoSteps } from '../data/sampleTrains';
 import { toMinutes } from '../utils/trainStatus';
 
-// THE ONLY PLACE THAT KNOWS WHERE TRAIN DATA COMES FROM.
-// Right now it builds made-up trains and replays a pretend story (demoSteps).
-// If you ever get permitted access to a real train-data source, replace the body
-// of this function and keep the same return shape - no screen needs to change.
-// (No free official public API for live train status was found; see the notes.)
+// SAMPLE (made-up) trains for the demo.
+// The demo clock starts at the first step's time and runs by itself (hooks/useTrains.js).
+// Given a clock time, this works out the trains as they would look at that moment:
+// every step whose time has come has already happened.
+// Live data (if you add a key) is in services/liveTrainService.js.
 //
-// step = which part of the demo story to show (0 = first).
 // Returns: { source: 'SAMPLE', nowMin, note, noteHi, trains: [ { id, number, name, route,
 //            scheduled, delayMin?, platformId, previousPlatformId? } ] }
-export async function getTrains(step = 0) {
-  await new Promise((resolve) => setTimeout(resolve, 300)); // pretend network delay
-
-  // Start from the planned trains, then apply every change up to this step.
+export function getTrainsAt(nowMin) {
   const trains = {};
   baseTrains.forEach((t) => (trains[t.id] = { ...t }));
-  for (let i = 0; i <= step && i < demoSteps.length; i++) {
-    Object.entries(demoSteps[i].changes).forEach(([id, change]) => {
+
+  let current = null; // the latest step that has happened
+  demoSteps.forEach((step) => {
+    if (toMinutes(step.now) > nowMin) return;
+    current = step;
+    Object.entries(step.changes).forEach(([id, change]) => {
       const train = trains[id];
       if (change.platformId && change.platformId !== train.platformId) {
         train.previousPlatformId = train.platformId; // remember the old platform
       }
       Object.assign(train, change);
     });
-  }
+  });
 
-  const current = demoSteps[Math.min(step, demoSteps.length - 1)];
   return {
     source: 'SAMPLE',
-    nowMin: toMinutes(current.now),
-    note: current.note,
-    noteHi: current.noteHi,
+    nowMin,
+    note: current ? current.note : '',
+    noteHi: current ? current.noteHi : '',
     trains: Object.values(trains),
   };
 }
 
-export const LAST_STEP = demoSteps.length - 1;
+export const DEMO_START = toMinutes(demoSteps[0].now); // 10:00
+export const DEMO_END = toMinutes('11:50'); // the demo stops here (everything has left)

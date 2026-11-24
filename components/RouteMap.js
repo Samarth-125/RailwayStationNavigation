@@ -5,7 +5,7 @@ import { activeTrainsAt } from '../utils/trainStatus';
 import { useI18n, mapText, field } from '../utils/i18n';
 
 // Colours of the rooms and stalls. [fill, outline]
-export const ROOM_COLORS = {
+const ROOM_COLORS = {
   ticket: ['#e0f2fe', '#7dd3fc'],
   help: ['#e0f2fe', '#7dd3fc'],
   police: ['#dbeafe', '#1d4ed8'],

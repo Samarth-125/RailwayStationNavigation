@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { ScrollView, View, Text, Pressable, Switch, StyleSheet } from 'react-native';
 import * as Speech from 'expo-speech';
 import { DATA_SOURCE_NOTE, DATA_SOURCE_NOTE_HI } from '../data/stationList';
@@ -7,7 +7,6 @@ import { useI18n, nameText, field, stepText, delayText, whenText } from '../util
 import { activeTrainsAt } from '../utils/trainStatus';
 import PlaceSelector from '../components/PlaceSelector';
 import RouteMap from '../components/RouteMap';
-import RouteMap3D from '../components/RouteMap3D';
 import ClosedPlatforms from '../components/ClosedPlatforms';
 
 export default function NavigateScreen({
@@ -33,7 +32,6 @@ export default function NavigateScreen({
   );
   const destClosed = Boolean(toId) && isClosedPlace(toId, closedIds);
   const pname = (id) => (id ? nameText(placeById[id].name, lang) : t('platformUnknown'));
-  const [view3d, setView3d] = useState(false); // false = flat 2D map, true = 3D view
 
   // Trains still to come at the platform you are heading to (if it is a platform).
   const { placeById } = station;
@@ -162,28 +160,7 @@ export default function NavigateScreen({
       )}
 
       <Text style={[styles.heading, styles.mapHeading]}>{t('stationMap')}</Text>
-      <View style={styles.viewRow} accessibilityLabel={t('viewLabel')}>
-        {[false, true].map((is3d) => (
-          <Pressable
-            key={String(is3d)}
-            style={[styles.viewBtn, view3d === is3d && styles.viewBtnOn]}
-            onPress={() => setView3d(is3d)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: view3d === is3d }}
-            accessibilityLabel={`${t('viewLabel')}: ${is3d ? t('view3d') : t('view2d')}`}
-          >
-            <Text style={[styles.viewText, view3d === is3d && styles.viewTextOn]}>
-              {is3d ? t('view3d') : t('view2d')}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-      {view3d ? (
-        <RouteMap3D station={station} path={route ? route.path : null} fromId={fromId} toId={toId} trains={trains} closedIds={closedIds} />
-      ) : (
-        <RouteMap station={station} path={route ? route.path : null} fromId={fromId} toId={toId} trains={trains} closedIds={closedIds} />
-      )}
-      {view3d && <Text style={styles.legend}>{t('schematic3d')}</Text>}
+      <RouteMap station={station} path={route ? route.path : null} fromId={fromId} toId={toId} trains={trains} closedIds={closedIds} />
       <Text style={styles.legend}>
         <Text style={{ color: '#15803d', fontWeight: 'bold' }}>{t('legendStart')}</Text>
         {'   '}
@@ -225,11 +202,6 @@ const styles = StyleSheet.create({
   trackingTitle: { fontSize: 16, fontWeight: 'bold', color: '#15803d' },
   trackingText: { fontSize: 15, marginTop: 4 },
   changed: { fontSize: 15, fontWeight: 'bold', color: '#ffffff', backgroundColor: '#7c3aed', padding: 6, borderRadius: 4, marginTop: 6 },
-  viewRow: { flexDirection: 'row', marginBottom: 8 },
-  viewBtn: { borderWidth: 1, borderColor: '#1d4ed8', borderRadius: 18, paddingVertical: 6, paddingHorizontal: 18, marginRight: 8, backgroundColor: '#ffffff' },
-  viewBtnOn: { backgroundColor: '#1d4ed8' },
-  viewText: { color: '#1d4ed8', fontWeight: 'bold', fontSize: 15 },
-  viewTextOn: { color: '#ffffff' },
   closedBanner: { fontSize: 15, fontWeight: 'bold', color: '#ffffff', backgroundColor: '#b91c1c', padding: 6, borderRadius: 4, marginTop: 6 },
   stopTracking: { color: '#1d4ed8', fontWeight: '600', fontSize: 15, marginTop: 8 },
   legend: { fontSize: 13, color: '#555555', marginBottom: 4 },
